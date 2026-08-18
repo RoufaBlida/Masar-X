@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Employees collection
+    match /employees/{employeeId} {
+      allow read: if true;
+      allow create: if isValidId(employeeId) && 
+        incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 150 &&
+        incoming().email is string && incoming().email.size() <= 150;
+      allow update: if isValidId(employeeId) && 
+        incoming().name is string && incoming().name.size() > 0;
+      allow delete: if isValidId(employeeId);
+    }
+
+    // Attendance and daily records collection
+    match /attendance_records/{recordId} {
+      allow read: if true;
+      allow create: if isValidId(recordId) && 
+        incoming().employeeId is string && incoming().employeeId.size() <= 128 &&
+        incoming().date is string && incoming().date.size() <= 32;
+      allow update: if isValidId(recordId);
+      allow delete: if isValidId(recordId);
+    }
+
+    // Application settings collection
+    match /app_settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingsId) && 
+        incoming().companyName is string && incoming().companyName.size() <= 200;
+      allow delete: if false;
+    }
+  }
+}

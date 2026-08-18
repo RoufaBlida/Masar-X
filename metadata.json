@@ -1,0 +1,6 @@
+{
+  "name": "مسار | Masar - Employee Management & Evaluation",
+  "description": "منصة سحابية متقدمة لإدارة وتقييم الموظفين، متابعة فترات التجربة، الحضور اليومي، وحساب الرواتب والخصومات لفرق العمل الإبداعية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

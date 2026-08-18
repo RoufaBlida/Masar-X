@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Team member employee profile and contract information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique employee ID" },
+        "accessCode": { "type": "string", "description": "Unique access code for employee login" },
+        "name": { "type": "string", "description": "Employee full name" },
+        "email": { "type": "string", "description": "Employee contact email" },
+        "phone": { "type": "string", "description": "Employee phone or WhatsApp" },
+        "role": { "type": "string", "description": "Employee job role" },
+        "avatarColor": { "type": "string", "description": "Avatar hex background color" },
+        "avatarInitial": { "type": "string", "description": "Employee initials" },
+        "startDate": { "type": "string", "description": "Trial or employment start date (YYYY-MM-DD)" },
+        "trialEndDate": { "type": "string", "description": "1-week trial end date (YYYY-MM-DD)" },
+        "contractType": { "type": "string", "description": "Contract type: 1_week_trial or 3_months_contract" },
+        "baseSalary": { "type": "number", "description": "Monthly base salary in USD" },
+        "deductionType": { "type": "string", "description": "daily_divided or fixed_amount" },
+        "fixedDeductionRate": { "type": "number", "description": "Fixed deduction amount in USD" },
+        "status": { "type": "string", "description": "active, promoted, or terminated" },
+        "softwareTools": { "type": "array", "description": "List of software tools mastered" },
+        "notes": { "type": "string", "description": "General notes" },
+        "payoutMethod": { "type": "string", "description": "Payment method" },
+        "payoutDetails": { "type": "string", "description": "Wallet address, IBAN or account details" },
+        "recipientCountry": { "type": "string", "description": "Recipient country" },
+        "senderCountry": { "type": "string", "description": "Sender country" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["id", "name", "email", "role", "contractType", "baseSalary", "deductionType", "status"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily attendance, task deliverables, evaluation and deduction details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique record ID (employeeId_YYYY-MM-DD)" },
+        "employeeId": { "type": "string", "description": "Associated employee ID" },
+        "date": { "type": "string", "description": "Date string (YYYY-MM-DD)" },
+        "status": { "type": "string", "description": "present, absent, excused, or weekend" },
+        "dailyDeductionAmount": { "type": "number", "description": "Deducted amount in USD" },
+        "deductionReason": { "type": "string", "description": "Deduction reason category" },
+        "customDeductionReason": { "type": "string", "description": "Detailed custom deduction note" },
+        "tasksSummary": { "type": "string", "description": "Daily work tasks summary submitted by employee" },
+        "videoDeliverableUrl": { "type": "string", "description": "Google Drive or deliverable video URL" },
+        "reportImages": { "type": "array", "description": "Array of base64 screenshots and report attachments" },
+        "employeeNotes": { "type": "string", "description": "Employee notes" },
+        "rating": { "type": "number", "description": "Daily score out of 5 stars" },
+        "managerFeedback": { "type": "string", "description": "Manager feedback" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["id", "employeeId", "date", "status"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application configurations, default salary rules, and company branding",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Settings document ID" },
+        "companyName": { "type": "string", "description": "Company name" },
+        "companyAddress": { "type": "string", "description": "Company address" },
+        "adminEmail": { "type": "string", "description": "Admin email" },
+        "defaultSalary": { "type": "number", "description": "Default base salary for new hires" },
+        "defaultDeductionType": { "type": "string", "description": "Default deduction type" },
+        "fixedDeductionRate": { "type": "number", "description": "Default fixed deduction rate" },
+        "trialPeriodDays": { "type": "number", "description": "Trial period duration in days" },
+        "weekendDays": { "type": "array", "description": "Weekend day indices (0-6)" },
+        "allowEmployeeSelfReport": { "type": "boolean", "description": "Allow employees to submit daily work" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["id", "companyName", "defaultSalary"]
+    }
+  },
+  "firestore": {
+    "/employees/{employeeId}": {
+      "schema": "Employee",
+      "description": "Collection of employee profiles"
+    },
+    "/attendance_records/{recordId}": {
+      "schema": "AttendanceRecord",
+      "description": "Collection of daily attendance and evaluation records"
+    },
+    "/app_settings/{settingsId}": {
+      "schema": "AppSettings",
+      "description": "Global application configuration documents"
+    }
+  }
+}

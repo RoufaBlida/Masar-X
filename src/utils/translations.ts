@@ -1,0 +1,290 @@
+export type Language = 'ar' | 'en';
+
+export const translations = {
+  ar: {
+    appName: 'مَسار',
+    appSubName: 'نظام إدارة وتقييم الفرق الإبداعية',
+    dashboard: 'لوحة القيادة والمؤشرات',
+    dailyLog: 'سجل المتابعة اليومي',
+    team: 'إدارة الفريق',
+    trialDecisions: 'قرارات التجربة والعقود',
+    notificationsLog: 'سجل الإشعارات والبريد',
+    settings: 'الإعدادات وقواعد العمل',
+    employeePortal: 'بوابة الموظف',
+    adminView: 'لوحة الإدارة',
+    
+    // Stats & KPI
+    kpiTrialCount: 'في أسبوع التجربة',
+    kpiTrialWeek: 'في أسبوع التجربة',
+    kpiThreeMonths: 'عقد 3 أشهر / مثبتون',
+    kpiAttendanceRate: 'نسبة الحضور اليوم',
+    kpiPresentToday: 'الحضور اليوم',
+    kpiTotalAccrued: 'إجمالي الرواتب المستحقة',
+    kpiAccruedPayroll: 'إجمالي المستحقات حتى اليوم',
+    kpiPendingDecisions: 'قرارات بحاجة حسم',
+    kpiUrgentDecisions: 'قرارات بحاجة حسم',
+    kpiTotalEmployees: 'إجمالي أعضاء الفريق',
+    dailyAttendance: 'سجل الحضور اليومي',
+    productivityCurve: 'منحنى أداء وإنتاجية الفريق (آخر 7 أيام)',
+    creativeRolesDistribution: 'توزيع التخصصات الإبداعية',
+    recentDeliverables: 'تسليمات ومخرجات اليوم',
+
+    // Daily Log
+    adminEvaluation: 'تقييم المشرف ومستوى الإنجاز',
+    adminNotesPlaceholder: 'اكتب ملاحظات توجيهية أو تقييم للأداء...',
+    employeeWorkReport: 'تقرير إنجاز الموظف المرفوع',
+    noReportYet: 'لم يتم رفع تقرير أو تسليم لليوم بعد',
+    
+    // Actions
+    addEmployee: 'إضافة موظف جديد',
+    markAllPresent: 'تحديد الكل حاضر',
+    allMarkedPresent: 'تم تعليم جميع الموظفين كحاضرين بنجاح!',
+    exportReport: 'تصدير التقرير',
+    exportExcel: 'تصدير كملف Excel (CSV)',
+    exportPdf: 'طباعة / حفظ كملف PDF',
+    saveChanges: 'حفظ التغييرات',
+    cancel: 'إلغاء',
+    edit: 'تعديل',
+    delete: 'حذف',
+    viewDetails: 'عرض الملف الكامل',
+    upgradeTo3Months: 'ترقية لعقد 3 أشهر',
+    endTrial: 'إنهاء التجربة',
+    sendDecisionEmail: 'إرسال إشعار القرار',
+    sendWeeklySummary: 'إرسال الملخص الأسبوعي',
+    testResendNotification: 'إرسال بريد تجريبي (Resend)',
+    searchPlaceholder: 'بحث باسم الموظف أو البريد أو التخصص...',
+    filterBy: 'تصفية السجل:',
+    all: 'الكل',
+    absentOnly: 'الغياب فقط',
+    unreviewedOnly: 'غير مقيّم من الإدارة',
+    noReportOnly: 'بانتظار تقرير الموظف',
+    trialOnly: 'فترة التجربة فقط',
+    
+    // Roles
+    role_video_editor: 'مونتير فيديو (Video Editor)',
+    role_motion_designer: 'مصمم موشن جرافيك (Motion Designer)',
+    role_thumbnail_designer: 'مصمم صور مصغرة (Thumbnail Designer)',
+    role_scriptwriter: 'كاتب سيناريو (Scriptwriter)',
+    role_sound_designer: 'مهندس صوتيات (Sound Designer)',
+    role_social_media_manager: 'مدير سوشيال ميديا (Social Media)',
+    role_developer: 'مبرمج ومطور (Developer)',
+    role_other: 'تخصص آخر',
+    
+    // Statuses
+    status_present: 'حاضر',
+    status_absent: 'غائب (خصم)',
+    status_weekend: 'عطلة رسمية',
+    status_excused: 'غياب بعذر',
+    
+    // Contract Types
+    contract_1_week_trial: 'أسبوع تجريبي (1-Week Trial)',
+    contract_3_month_contract: 'عقد 3 أشهر (3-Month Contract)',
+    contract_permanent: 'عقد دائم (Permanent)',
+    contract_terminated: 'تم إنهاء التجربة',
+    
+    // Delivery Speeds
+    speed_delayed: 'متأخر',
+    speed_on_time: 'في الموعد',
+    speed_fast: 'سريع جداً',
+    speed_exceptional: 'أداء استثنائي',
+
+    // Fields
+    employeeName: 'اسم الموظف',
+    email: 'البريد الإلكتروني',
+    specialty: 'التخصص والدور الوظيفي',
+    startDate: 'تاريخ بداية العمل',
+    baseSalary: 'الراتب الشهري ($)',
+    deductionRule: 'طريقة احتساب خصم الغياب',
+    deductionDivided: 'توزيع الراتب على أيام العمل (موصى به)',
+    deductionFixed: 'مبلغ خصم ثابت لكل يوم غياب',
+    fixedDeductionAmount: 'مبلغ الخصم لليوم ($)',
+    accessCode: 'كود الدخول المخصص',
+    autoSaved: 'تم الحفظ تلقائياً',
+    saving: 'جاري الحفظ...',
+    
+    // Employee Portal
+    employeeWelcome: 'مرحباً بك في فريق العمل',
+    daysRemainingTrial: 'الأيام المتبقية في الفترة التجريبية',
+    accruedSalaryTitle: 'راتبك المستحق المتراكم حتى اليوم',
+    earnedMotivator: 'كل يوم التزام يرفع من رصيدك ويزيد فرص تثبيتك!',
+    todayWorkReport: 'تقرير إنجازك لليوم',
+    todayWorkReportPlaceholder: 'اكتب ما قمت بإنجازه اليوم بالتفصيل (مثال: تم إتمام مونتاج الفيديو الأول، وإضافة المؤثرات البصرية وتصدير الرابط للمراجعة)...',
+    deliverableLink: 'رابط التسليم / الفيديو (Google Drive / Frame.io / Loom / YouTube)',
+    attachImages: 'إرفاق صور أو سكرين شوت للإنجاز',
+    dragDropImages: 'اسحب الصور وأفلتها هنا أو اضغط للاختيار من جهازك',
+    imageUploadLimit: 'يدعم PNG, JPG, WEBP (حجم مثالي وسريع)',
+    attachedImages: 'الصور المرفقة بالتقرير',
+    removeImage: 'حذف الصورة',
+    viewImage: 'عرض الصورة بالحجم الكامل',
+    submitDailyReport: 'إرسال التقرير اليومي',
+    reportSubmittedSuccess: 'تم تسليم تقرير اليوم بنجاح ووصل لمدير الفريق!',
+    managerFeedbackTitle: 'ملاحظات وتقييم الإدارة لعملك',
+    noFeedbackYet: 'لم يتم إضافة تقييم لهذا اليوم بعد',
+    
+    // Decisions
+    trialEndingAlert: 'أوشكت الفترة التجريبية على الانتهاء!',
+    trialPassedAlert: 'انتهت الـ 7 أيام التجريبية — يتطلب قرار الترقية أو الإنهاء',
+    decisionModalTitle: 'حسم مصير الموظف بعد التجربة',
+    decisionConfirmMessage: 'سيتم إرسال بريد إلكتروني رسمي للموظف عبر خدمة Resend وتحديث سجله فوراً.',
+    
+    // Weekly Summary
+    weeklySummaryTitle: 'الملخص الأسبوعي التلقائي',
+    weeklySummaryRecipient: 'البريد المستلم (الأدمن)',
+    weeklySummarySchedule: 'الموعد: كل خميس مساءً',
+    weeklySummaryContent: 'يتضمن: سجل الحضور، الرواتب المستحقة، الموظفين الجدد وقرارات التجربة، وإنجازات الفريق.',
+
+    // Monthly Payslip (Fiche de Paie)
+    monthlyPayslip: 'قسيمة الراتب الشهرية (Fiche de Paie)',
+    viewDownloadPayslip: 'عرض وتحميل قسيمة الراتب (PDF)',
+    payslipSubtitle: 'كشف مالي معتمد بالحضور، الغيابات، الخصومات المطبقة، وصافي الراتب للتحويل',
+    downloadPayslipPdf: 'تحميل قسيمة الراتب PDF',
+    payoutMethodLabel: 'وسيلة استلام الراتب',
+    payoutDetailsLabel: 'بيانات المحفظة / الحساب',
+    senderCountryLabel: 'البلد المرسل',
+    recipientCountryLabel: 'البلد المستقبل',
+    deductionReasonLabel: 'سبب الخصم التفصيلي'
+  },
+  en: {
+    appName: 'MASAR',
+    appSubName: 'Creative Team Evaluation & Management Platform',
+    dashboard: 'Dashboard & Analytics',
+    dailyLog: 'Daily Attendance Log',
+    team: 'Team Management',
+    trialDecisions: 'Trial & Contract Decisions',
+    notificationsLog: 'Notifications & Email Log',
+    settings: 'Settings & Work Rules',
+    employeePortal: 'Employee Portal',
+    adminView: 'Admin Console',
+    
+    // Stats & KPI
+    kpiTrialCount: 'In 1-Week Trial',
+    kpiTrialWeek: '1-Week Trial',
+    kpiThreeMonths: '3-Month Contract / Active',
+    kpiAttendanceRate: "Today's Attendance Rate",
+    kpiPresentToday: 'Present Today',
+    kpiTotalAccrued: 'Total Accrued Payroll',
+    kpiAccruedPayroll: 'Accrued Payroll to Date',
+    kpiPendingDecisions: 'Pending Decisions',
+    kpiUrgentDecisions: 'Pending Decisions',
+    kpiTotalEmployees: 'Total Team Members',
+    dailyAttendance: 'Daily Attendance Log',
+    productivityCurve: 'Team Productivity Curve (Last 7 Days)',
+    creativeRolesDistribution: 'Creative Specialties Breakdown',
+    recentDeliverables: "Today's Deliverables Feed",
+
+    // Daily Log
+    adminEvaluation: 'Admin Evaluation & Performance',
+    adminNotesPlaceholder: 'Provide feedback or guidance notes...',
+    employeeWorkReport: 'Employee Submitted Task Report',
+    noReportYet: 'No work report submitted yet today',
+    
+    // Actions
+    addEmployee: 'Add New Member',
+    markAllPresent: 'Mark All Present',
+    allMarkedPresent: 'All active employees marked present for selected date!',
+    exportReport: 'Export Report',
+    exportExcel: 'Export Excel (CSV)',
+    exportPdf: 'Print / Save PDF',
+    saveChanges: 'Save Changes',
+    cancel: 'Cancel',
+    edit: 'Edit',
+    delete: 'Delete',
+    viewDetails: 'View Full Profile',
+    upgradeTo3Months: 'Promote to 3-Month Contract',
+    endTrial: 'Conclude Trial',
+    sendDecisionEmail: 'Send Decision Email',
+    sendWeeklySummary: 'Send Weekly Summary',
+    testResendNotification: 'Send Test Email (Resend)',
+    searchPlaceholder: 'Search by employee name, email, or role...',
+    filterBy: 'Filter Records:',
+    all: 'All',
+    absentOnly: 'Absent Only',
+    unreviewedOnly: 'Unreviewed by Admin',
+    noReportOnly: 'Missing Employee Report',
+    trialOnly: 'Trial Period Only',
+    
+    // Roles
+    role_video_editor: 'Video Editor',
+    role_motion_designer: 'Motion Designer',
+    role_thumbnail_designer: 'Thumbnail Designer',
+    role_scriptwriter: 'Scriptwriter',
+    role_sound_designer: 'Sound Designer',
+    role_social_media_manager: 'Social Media Manager',
+    role_developer: 'Developer / Tech',
+    role_other: 'Other Specialty',
+    
+    // Statuses
+    status_present: 'Present',
+    status_absent: 'Absent (Deducted)',
+    status_weekend: 'Weekend Off',
+    status_excused: 'Excused Leave',
+    
+    // Contract Types
+    contract_1_week_trial: '1-Week Trial',
+    contract_3_month_contract: '3-Month Contract',
+    contract_permanent: 'Permanent',
+    contract_terminated: 'Trial Concluded',
+    
+    // Delivery Speeds
+    speed_delayed: 'Delayed',
+    speed_on_time: 'On Time',
+    speed_fast: 'Fast',
+    speed_exceptional: 'Exceptional',
+
+    // Fields
+    employeeName: 'Employee Full Name',
+    email: 'Email Address',
+    specialty: 'Specialty / Creative Role',
+    startDate: 'Start Date',
+    baseSalary: 'Monthly Base Salary ($)',
+    deductionRule: 'Absence Deduction Calculation',
+    deductionDivided: 'Prorated by Working Days (Recommended)',
+    deductionFixed: 'Fixed Deduction per Absent Day',
+    fixedDeductionAmount: 'Fixed Daily Deduction ($)',
+    accessCode: 'Assigned Access Code',
+    autoSaved: 'Auto-saved',
+    saving: 'Saving...',
+    
+    // Employee Portal
+    employeeWelcome: 'Welcome to the Creative Team',
+    daysRemainingTrial: 'Days Remaining in Trial',
+    accruedSalaryTitle: 'Accrued Compensation to Date',
+    earnedMotivator: 'Every committed workday increases your compensation and contract score!',
+    todayWorkReport: "Today's Work Report",
+    todayWorkReportPlaceholder: 'Detail the tasks you finalized today (e.g. completed first video cut, added sound effects, rendered export)...',
+    deliverableLink: 'Deliverable Link (Google Drive / Frame.io / Loom / YouTube)',
+    attachImages: 'Attach Screenshots or Images',
+    dragDropImages: 'Drag & drop images here, or click to browse',
+    imageUploadLimit: 'Supports PNG, JPG, WEBP (optimized size)',
+    attachedImages: 'Attached Images',
+    removeImage: 'Remove Image',
+    viewImage: 'View Full Size',
+    submitDailyReport: 'Submit Daily Report',
+    reportSubmittedSuccess: 'Your daily report has been recorded and submitted to your supervisor!',
+    managerFeedbackTitle: 'Manager Ratings & Feedback',
+    noFeedbackYet: 'No manager evaluation recorded yet for this date',
+    
+    // Decisions
+    trialEndingAlert: 'Trial period ending soon!',
+    trialPassedAlert: '1-Week trial period concluded — Decision required',
+    decisionModalTitle: 'Trial Performance & Promotion Decision',
+    decisionConfirmMessage: 'An official notification will be dispatched to the candidate and their record will update immediately.',
+    
+    // Weekly Summary
+    weeklySummaryTitle: 'Automated Weekly Summary Digest',
+    weeklySummaryRecipient: 'Recipient Admin Email',
+    weeklySummarySchedule: 'Schedule: Every Thursday Evening',
+    weeklySummaryContent: 'Includes: Attendance records, accrued salaries, new trial candidates, and project outputs.',
+
+    // Monthly Payslip (Fiche de Paie)
+    monthlyPayslip: 'Monthly Payslip (Fiche de Paie)',
+    viewDownloadPayslip: 'View & Download Payslip (PDF)',
+    payslipSubtitle: 'Verified statement with attendance, absence reasons, deductions & net payout',
+    downloadPayslipPdf: 'Download Payslip PDF',
+    payoutMethodLabel: 'Payout Method',
+    payoutDetailsLabel: 'Wallet / Account Details',
+    senderCountryLabel: 'Sender Country',
+    recipientCountryLabel: 'Receiver Country',
+    deductionReasonLabel: 'Detailed Deduction Reason'
+  }
+};
