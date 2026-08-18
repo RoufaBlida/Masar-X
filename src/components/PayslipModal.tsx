@@ -2,21 +2,15 @@ import React, { useState, useRef } from 'react';
 import { 
   X, 
   Printer, 
-  Download, 
   Calendar, 
   DollarSign, 
-  Building2, 
   UserCheck, 
   CreditCard, 
-  Globe2, 
   ShieldCheck, 
   CheckCircle2, 
   AlertTriangle, 
-  Sparkles, 
-  Award,
-  ChevronLeft,
-  ChevronRight,
-  Send,
+  ChevronLeft, 
+  ChevronRight, 
   FileText
 } from 'lucide-react';
 import { Employee, AttendanceRecord, AppSettings } from '../types';
@@ -85,9 +79,9 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible animate-fadeIn">
+    <div className="payslip-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible animate-fadeIn">
       {/* Modal Card Container */}
-      <div className="relative w-full max-w-4xl bg-[#17181D] border border-[#2D3039] rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none print:bg-white print:w-full">
+      <div className="payslip-modal-card relative w-full max-w-3xl bg-[#17181D] border border-[#2D3039] rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none print:bg-white print:w-full print:my-0">
         
         {/* Top Control Bar (Hidden in Print) */}
         <div className="p-4 bg-[#1F2127] border-b border-[#2D3039] flex flex-wrap items-center justify-between gap-3 print:hidden shrink-0">
@@ -97,11 +91,11 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>{isAr ? 'قسيمة الراتب الشهرية الرسمية (Fiche de Paie)' : 'Monthly Payslip Document'}</span>
+                <span>{isAr ? 'قسيمة الراتب الشهرية الرسمية' : 'Official Monthly Payslip'}</span>
                 <span className="text-[11px] font-normal text-[#9CA3AF] font-mono">({payslip.referenceNumber})</span>
               </h2>
               <p className="text-xs text-[#9CA3AF]">
-                {employee.name} • {payslip.roleNameAr}
+                {employee.name} • {isAr ? payslip.roleNameAr : payslip.roleNameEn}
               </p>
             </div>
           </div>
@@ -140,7 +134,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] flex items-center gap-2 shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 stroke-[2]" />
-              <span>{isAr ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}</span>
+              <span>{isAr ? 'طباعة / تحميل PDF' : 'Print / Save PDF'}</span>
             </button>
 
             {/* Close Button */}
@@ -156,24 +150,24 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
         </div>
 
         {/* Scrollable Printable Payslip Area */}
-        <div className="overflow-y-auto p-4 sm:p-6 bg-[#111216] print:p-0 print:bg-white print:overflow-visible">
+        <div className="payslip-scroll-area overflow-y-auto p-4 sm:p-6 bg-[#111216] print:p-0 print:bg-white print:overflow-visible">
           
           {/* A4 Sheet Surface */}
           <div
             ref={printContainerRef}
-            className="payslip-sheet mx-auto max-w-3xl bg-white text-[#1E293B] rounded-xl shadow-lg border border-[#E2E8F0] p-6 sm:p-8 space-y-6 print:shadow-none print:border-none print:p-0 print:rounded-none print:w-full print:max-w-none font-sans"
+            className="payslip-sheet mx-auto max-w-3xl bg-white text-[#1E293B] rounded-xl shadow-lg border border-[#E2E8F0] p-6 sm:p-8 space-y-5 print:shadow-none print:border print:border-[#CBD5E1] print:p-6 print:rounded-lg print:w-full print:max-w-none font-sans"
             dir={isAr ? 'rtl' : 'ltr'}
           >
             {/* Header: Company Wordmark & Payslip Title */}
-            <div className="flex flex-row items-start justify-between border-b-2 border-[#E06D28] pb-5 gap-4">
+            <div className="flex flex-row items-start justify-between border-b-2 border-[#E06D28] pb-4 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1F2127] text-white flex items-center justify-center print:bg-[#1E293B]">
+                  <div className="w-8 h-8 rounded-lg bg-[#1F2127] text-white flex items-center justify-center print:bg-[#0F172A]">
                     <BrandLogo size="sm" />
                   </div>
                   <div>
-                    <h1 className="text-xl font-extrabold tracking-tight text-[#0F172A] uppercase">
-                      {settings.companyName || 'مسار للإنتاج الرقمي'}
+                    <h1 className="text-lg font-extrabold tracking-tight text-[#0F172A] uppercase">
+                      {settings.companyName || (isAr ? 'مسار للإنتاج الرقمي' : 'MASAR Digital Media')}
                     </h1>
                     <span className="text-[10px] text-[#64748B] font-mono block tracking-wider uppercase">
                       MASAR DIGITAL CREATIVE HUB
@@ -181,20 +175,20 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
                   </div>
                 </div>
                 <p className="text-[11px] text-[#475569]">
-                  {settings.companyAddress || 'الرياض، المملكة العربية السعودية'} • {settings.adminEmail}
+                  {settings.companyAddress || (isAr ? 'الرياض، المملكة العربية السعودية' : 'Riyadh, Saudi Arabia')} • {settings.adminEmail}
                 </p>
               </div>
 
               <div className="text-left rtl:text-left ltr:text-right space-y-1">
                 <div className="inline-block bg-[#FFF7ED] border border-[#FDBA74] text-[#C2410C] font-bold text-xs px-3 py-1 rounded-md">
-                  {isAr ? 'قسيمة راتب شهرية • Fiche de Paie' : 'Monthly Payslip • Pay Stub'}
+                  {isAr ? 'قسيمة راتب شهرية معتمدة' : 'Official Monthly Payslip'}
                 </div>
                 <div className="text-[11px] text-[#64748B] font-mono">
                   <span>{isAr ? 'المرجع:' : 'Ref:'} </span>
                   <span className="font-bold text-[#0F172A]">{payslip.referenceNumber}</span>
                 </div>
                 <div className="text-[11px] text-[#64748B]">
-                  <span>{isAr ? 'تاريخ التحرير:' : 'Issued Date:'} </span>
+                  <span>{isAr ? 'تاريخ التحرير:' : 'Issue Date:'} </span>
                   <span className="font-semibold text-[#0F172A]">{formatDate(payslip.issueDate, lang)}</span>
                 </div>
                 <div className="text-[11px] text-[#64748B]">
@@ -207,10 +201,10 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
 
             {/* Information Grid: Employee Profile & Payment Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               
               {/* Box 1: Employee Information */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 space-y-2 text-xs">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3.5 space-y-2 text-xs">
                 <div className="flex items-center gap-1.5 pb-2 border-b border-[#E2E8F0] font-bold text-[#0F172A]">
                   <UserCheck className="w-4 h-4 text-[#E06D28]" />
                   <span>{isAr ? 'بيانات الموظف والمسمى الوظيفي' : 'Employee Details'}</span>
@@ -220,32 +214,31 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
                   <span className="text-[#64748B]">{isAr ? 'الاسم الكامل:' : 'Full Name:'}</span>
                   <span className="col-span-2 font-bold text-[#0F172A]">{payslip.employeeName}</span>
 
-                  <span className="text-[#64748B]">{isAr ? 'كود الموظف:' : 'Access Code:'}</span>
+                  <span className="text-[#64748B]">{isAr ? 'كود الموظف:' : 'Employee Code:'}</span>
                   <span className="col-span-2 font-mono font-bold text-[#C2410C]">{payslip.accessCode}</span>
 
-                  <span className="text-[#64748B]">{isAr ? 'التخصص والوظيفة:' : 'Role:'}</span>
-                  <span className="col-span-2 font-semibold text-[#334155]">{payslip.roleNameAr}</span>
+                  <span className="text-[#64748B]">{isAr ? 'التخصص والوظيفة:' : 'Role / Title:'}</span>
+                  <span className="col-span-2 font-semibold text-[#334155]">
+                    {isAr ? payslip.roleNameAr : payslip.roleNameEn}
+                  </span>
 
                   <span className="text-[#64748B]">{isAr ? 'القسم:' : 'Department:'}</span>
-                  <span className="col-span-2 text-[#334155]">{payslip.department}</span>
+                  <span className="col-span-2 text-[#334155]">
+                    {isAr ? payslip.department : 'Creative Production & Content'}
+                  </span>
 
                   <span className="text-[#64748B]">{isAr ? 'نوع العقد:' : 'Contract Type:'}</span>
-                  <span className="col-span-2 font-semibold text-[#0F172A]">{payslip.contractTypeAr}</span>
+                  <span className="col-span-2 font-semibold text-[#0F172A]">
+                    {isAr ? payslip.contractTypeAr : payslip.contractTypeEn}
+                  </span>
 
-                  <span className="text-[#64748B]">{isAr ? 'البريد الإلكتروني:' : 'Email:'}</span>
+                  <span className="text-[#64748B]">{isAr ? 'البريد الإلكتروني:' : 'Email Address:'}</span>
                   <span className="col-span-2 font-mono text-[#334155]">{payslip.employeeEmail}</span>
-
-                  {payslip.employeePhone && (
-                    <>
-                      <span className="text-[#64748B]">{isAr ? 'الهاتف:' : 'Phone:'}</span>
-                      <span className="col-span-2 font-mono text-[#334155]">{payslip.employeePhone}</span>
-                    </>
-                  )}
                 </div>
               </div>
 
               {/* Box 2: Payment Method & Cross-Border Transfer */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 space-y-2 text-xs">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3.5 space-y-2 text-xs">
                 <div className="flex items-center gap-1.5 pb-2 border-b border-[#E2E8F0] font-bold text-[#0F172A]">
                   <CreditCard className="w-4 h-4 text-[#E06D28]" />
                   <span>{isAr ? 'بيانات التحويل واستلام المستحقات' : 'Payment & Transfer Details'}</span>
@@ -265,9 +258,11 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
                   </span>
 
                   <span className="text-[#64748B]">{isAr ? 'وسيلة الدفع:' : 'Payout Method:'}</span>
-                  <span className="col-span-2 font-bold text-[#C2410C]">{payslip.payoutMethodLabelAr}</span>
+                  <span className="col-span-2 font-bold text-[#C2410C]">
+                    {isAr ? payslip.payoutMethodLabelAr : payslip.payoutMethodLabelEn}
+                  </span>
 
-                  <span className="text-[#64748B]">{isAr ? 'الحساب / المحفظة:' : 'Wallet / IBAN:'}</span>
+                  <span className="text-[#64748B]">{isAr ? 'الحساب / المحفظة:' : 'Wallet / Account:'}</span>
                   <span className="col-span-2 font-mono text-[11px] font-bold text-[#0F172A] break-all bg-white p-1 rounded border border-[#E2E8F0]">
                     {payslip.payoutDetails}
                   </span>
@@ -284,8 +279,8 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
 
             {/* Attendance & Performance Summary Strip */}
-            <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-xl p-4 text-xs">
-              <div className="flex items-center justify-between font-bold text-[#9A3412] mb-3 pb-1.5 border-b border-[#FDBA74]">
+            <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-xl p-3.5 text-xs">
+              <div className="flex items-center justify-between font-bold text-[#9A3412] mb-2.5 pb-1.5 border-b border-[#FDBA74]">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-[#EA580C]" />
                   <span>{isAr ? 'ملخص الحضور والالتزام خلال الشهر' : 'Monthly Attendance & Performance Summary'}</span>
@@ -360,7 +355,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
                       {isAr ? 'معدل أجر يوم العمل الواحد' : 'Daily Working Rate'}
                     </td>
                     <td className="p-2.5 text-center text-[#64748B] font-mono">
-                      ${payslip.baseSalary} ÷ {payslip.totalWorkingDays} {isAr ? 'يوم' : 'days'}
+                      ${payslip.baseSalary} ÷ 30 {isAr ? 'يوم (عطل مدفوعة)' : 'days (paid off-days)'}
                     </td>
                     <td className="p-2.5 text-right rtl:text-left font-mono text-[#64748B]">
                       ${payslip.dailyRate.toFixed(2)} / {isAr ? 'يوم' : 'day'}
@@ -385,7 +380,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               </table>
             </div>
 
-            {/* Itemized Deductions Breakdown (Detailed reasons for each deduction) */}
+            {/* Itemized Deductions Breakdown */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-[#0F172A] flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-[#E06D28]" />
@@ -393,9 +388,13 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               </h3>
 
               {payslip.deductionItems.length === 0 ? (
-                <div className="p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-[#15803D] text-xs font-semibold flex items-center gap-2">
+                <div className="p-2.5 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-[#15803D] text-xs font-semibold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 stroke-[2]" />
-                  <span>{isAr ? 'سجل ناصع: لا توجد أي خصومات مسجلة على الموظف لهذا الشهر (التزام كامل 100%).' : 'Clean record: No deductions recorded for this employee this month.'}</span>
+                  <span>
+                    {isAr
+                      ? 'سجل ناصع: لا توجد أي خصومات مسجلة على الموظف لهذا الشهر (التزام كامل 100%).'
+                      : 'Clean record: No deductions recorded for this employee this month (100% attendance).'}
+                  </span>
                 </div>
               ) : (
                 <div className="border border-[#CBD5E1] rounded-lg overflow-hidden text-xs">
@@ -434,7 +433,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
 
             {/* Net Salary Payable Callout Box */}
-            <div className="p-5 rounded-xl bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md print:bg-white print:text-[#0F172A] print:border-2 print:border-[#0F172A]">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md print:bg-white print:text-[#0F172A] print:border-2 print:border-[#0F172A]">
               <div>
                 <span className="text-[11px] font-mono text-[#FDBA74] uppercase tracking-wider block font-bold">
                   {isAr ? 'صافي الراتب النهائي المستحق للصرف' : 'NET PAYABLE COMPENSATION'}
@@ -445,8 +444,8 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               </div>
 
               <div className="text-center sm:text-right rtl:sm:text-left">
-                <div className="text-3xl font-extrabold font-mono text-[#FB923C] tracking-tight">
-                  ${payslip.netPayable.toFixed(2)} <span className="text-sm font-normal text-white">USD</span>
+                <div className="text-2xl sm:text-3xl font-extrabold font-mono text-[#FB923C] tracking-tight">
+                  ${payslip.netPayable.toFixed(2)} <span className="text-xs font-normal text-white">USD</span>
                 </div>
                 <div className="text-[10px] text-[#CBD5E1] font-medium mt-0.5">
                   {isAr ? 'القيمة بالدولار الأمريكي' : 'United States Dollar (USD)'}
@@ -455,29 +454,31 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
 
             {/* Official Signatures & Verification Seal */}
-            <div className="pt-6 border-t-2 border-[#E2E8F0] grid grid-cols-2 sm:grid-cols-3 gap-6 text-xs text-[#475569] items-end">
+            <div className="pt-4 border-t-2 border-[#E2E8F0] grid grid-cols-2 sm:grid-cols-3 gap-5 text-xs text-[#475569] items-end">
               {/* Manager Sign */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <span className="font-bold text-[#0F172A] block">{isAr ? 'توقيع الإدارة المالية:' : 'Finance & HR Approval:'}</span>
-                <div className="h-10 border-b border-dashed border-[#94A3B8] flex items-center justify-center">
+                <div className="h-9 border-b border-dashed border-[#94A3B8] flex items-center justify-center">
                   <span className="font-serif italic font-bold text-[#0F172A] text-sm">Masar Management</span>
                 </div>
-                <span className="text-[10px] text-[#64748B] block">{settings.companyName || 'مسار للإنتاج الرقمي'}</span>
+                <span className="text-[10px] text-[#64748B] block">
+                  {settings.companyName || (isAr ? 'مسار للإنتاج الرقمي' : 'MASAR Digital Media')}
+                </span>
               </div>
 
               {/* Digital Seal */}
               <div className="text-center space-y-1">
-                <div className="w-16 h-16 mx-auto rounded-full border-2 border-dashed border-[#E06D28] flex flex-col items-center justify-center text-[#E06D28] p-1 bg-[#FFF7ED]">
-                  <ShieldCheck className="w-5 h-5 stroke-[2]" />
-                  <span className="text-[7px] font-bold uppercase tracking-wider font-mono">MASAR VERIFIED</span>
+                <div className="w-14 h-14 mx-auto rounded-full border-2 border-dashed border-[#E06D28] flex flex-col items-center justify-center text-[#E06D28] p-1 bg-[#FFF7ED]">
+                  <ShieldCheck className="w-4 h-4 stroke-[2]" />
+                  <span className="text-[6.5px] font-bold uppercase tracking-wider font-mono">MASAR VERIFIED</span>
                 </div>
-                <span className="text-[9px] text-[#94A3B8] font-mono block">REF: {payslip.referenceNumber}</span>
+                <span className="text-[8.5px] text-[#94A3B8] font-mono block">REF: {payslip.referenceNumber}</span>
               </div>
 
               {/* Employee Acknowledgment */}
-              <div className="space-y-3 text-left rtl:text-right">
+              <div className="space-y-2.5 text-left rtl:text-right">
                 <span className="font-bold text-[#0F172A] block">{isAr ? 'توقيع واستلام الموظف:' : 'Employee Signature:'}</span>
-                <div className="h-10 border-b border-dashed border-[#94A3B8] flex items-center justify-center">
+                <div className="h-9 border-b border-dashed border-[#94A3B8] flex items-center justify-center">
                   <span className="text-[10px] text-[#94A3B8] italic">{payslip.employeeName}</span>
                 </div>
                 <span className="text-[10px] text-[#64748B] block">{isAr ? 'إقرار بالاستلام والموافقة' : 'Receipt & Acknowledgment'}</span>

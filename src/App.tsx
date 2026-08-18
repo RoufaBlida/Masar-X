@@ -110,43 +110,6 @@ const MainContent: React.FC = () => {
       />
 
       <VercelSyncModal />
-
-      {/* Printable Report View (Visible only during window.print) */}
-      <div className="hidden print-only p-8 bg-white text-black font-sans">
-        <div className="border-b pb-4 mb-6">
-          <h1 className="text-2xl font-bold">مسار | MASAR - تقرير أداء وحضور الفريق والرواتب</h1>
-          <p className="text-sm text-gray-600">التاريخ: {formatDate(currentDate, lang)} | المشرف: {settings.adminEmail}</p>
-        </div>
-
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b bg-gray-100">
-              <th className="p-2">كود</th>
-              <th className="p-2">الاسم</th>
-              <th className="p-2">التخصص</th>
-              <th className="p-2">العقد</th>
-              <th className="p-2">الراتب</th>
-              <th className="p-2">حضور</th>
-              <th className="p-2">غياب</th>
-              <th className="p-2">المستحق</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map(emp => (
-              <tr key={emp.id} className="border-b">
-                <td className="p-2">{emp.accessCode}</td>
-                <td className="p-2 font-bold">{emp.name}</td>
-                <td className="p-2">{emp.role}</td>
-                <td className="p-2">{emp.contractType}</td>
-                <td className="p-2">${emp.baseSalary}</td>
-                <td className="p-2">حاضر</td>
-                <td className="p-2">0</td>
-                <td className="p-2 font-bold">${emp.baseSalary}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };

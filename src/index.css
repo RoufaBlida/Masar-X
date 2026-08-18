@@ -49,33 +49,94 @@ body {
                     radial-gradient(circle at 85% 80%, rgba(224, 109, 40, 0.04) 0%, transparent 40%);
 }
 
-/* Print styles for PDF report and Payslip export */
+/* Print styles for clean, single-sheet official Payslip and reports */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm 10mm;
   }
   
-  body {
+  *,
+  *::before,
+  *::after {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
     background: #FFFFFF !important;
     color: #0F172A !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide everything except the printable modal sheet */
-  header, nav, footer, .no-print {
+  /* Hide app navigation, main views, header, toast notifications, floating buttons */
+  #root > div > header,
+  #root > div > main,
+  #root > div > div.fixed,
+  header, 
+  nav, 
+  footer, 
+  main,
+  .no-print,
+  .print-hide {
     display: none !important;
   }
 
-  .payslip-sheet {
-    box-shadow: none !important;
-    border: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
+  /* Modal Wrapper Reset for Print */
+  .payslip-modal-backdrop {
+    position: static !important;
+    inset: auto !important;
+    background: #FFFFFF !important;
     padding: 0 !important;
     margin: 0 !important;
-    page-break-inside: avoid;
+    display: block !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 1 !important;
+  }
+
+  .payslip-modal-card {
+    background: #FFFFFF !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .payslip-scroll-area {
+    background: #FFFFFF !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .payslip-sheet {
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 20px 24px !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .print-only {

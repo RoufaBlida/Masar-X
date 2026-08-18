@@ -53,9 +53,11 @@ interface AppContextType {
   logout: () => void;
   clearAllLocalData: () => void;
   addAuthorizedAdmin: (admin: Omit<AdminAccount, 'id' | 'createdAt'>) => void;
+  updateAuthorizedAdmin: (id: string, updates: Partial<AdminAccount>) => void;
   updateAuthorizedAdminPermissions: (id: string, permissions: AdminPermissions) => void;
   removeAuthorizedAdmin: (id: string) => void;
   updateMasterAdminPassword: (newPass: string) => void;
+  updateMasterAdminInfo: (newEmail: string, newPassword?: string) => void;
 
   // Sound System
   toggleSound: () => void;
@@ -286,8 +288,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await syncAllToCloud(employees, attendanceRecords, settings);
           }
 
-          if (cloudData.attendance && cloudData.attendance.length > 0) {
-            setAttendanceRecords(cloudData.attendance);
+          if (cloudData.attendanceRecords && cloudData.attendanceRecords.length > 0) {
+            setAttendanceRecords(cloudData.attendanceRecords);
           }
 
           if (cloudData.settings) {
@@ -532,6 +534,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(isAr ? `تمت إضافة وتفويض المشرف ${newAdmin.name} بنجاح` : `Supervisor ${newAdmin.name} authorized`, 'success');
   };
 
+  const updateAuthorizedAdmin = (id: string, updates: Partial<AdminAccount>) => {
+    const updatedList = (settings.authorizedAdmins || []).map(a => {
+      if (a.id === id) {
+        return {
+          ...a,
+          ...updates,
+          email: updates.email ? updates.email.trim().toLowerCase() : a.email,
+          name: updates.name ? updates.name.trim() : a.name,
+          password: updates.password !== undefined ? updates.password.trim() : a.password,
+          permissions: updates.permissions || (updates.role === 'super_admin' ? SUPER_ADMIN_PERMISSIONS : a.permissions)
+        };
+      }
+      return a;
+    });
+    const updatedSettings = { ...settings, authorizedAdmins: updatedList };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? 'تم تحديث وتعديل بيانات وحساب المشرف بنجاح' : 'Admin details updated successfully', 'success');
+  };
+
   const updateAuthorizedAdminPermissions = (id: string, permissions: AdminPermissions) => {
     const updatedList = (settings.authorizedAdmins || []).map(a => 
       a.id === id ? { ...a, permissions } : a
@@ -560,6 +583,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
     saveSettingsToCloud(updatedSettings);
     showToast(isAr ? 'تم تحديث كلمة مرور الإدارة بنجاح 🔒' : 'Master password updated', 'success');
+  };
+
+  const updateMasterAdminInfo = (newEmail: string, newPassword?: string) => {
+    const email = newEmail.trim().toLowerCase();
+    const updatedSettings: AppSettings = {
+      ...settings,
+      adminEmail: email || settings.adminEmail,
+      ...(newPassword && newPassword.trim() ? { adminPassword: newPassword.trim() } : {})
+    };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? 'تم تحديث بيانات وبريد وحساب المدير العام بنجاح 🔒' : 'Master admin updated', 'success');
   };
 
   const toggleSound = () => {
@@ -1069,9 +1105,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
         clearAllLocalData,
         addAuthorizedAdmin,
+        updateAuthorizedAdmin,
         updateAuthorizedAdminPermissions,
         removeAuthorizedAdmin,
         updateMasterAdminPassword,
+        updateMasterAdminInfo,
         toggleSound,
         activeTab,
         setActiveTab,

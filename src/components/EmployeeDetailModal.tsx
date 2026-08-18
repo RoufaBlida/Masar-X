@@ -217,7 +217,7 @@ export const EmployeeDetailModal: React.FC = () => {
                   className="py-1 px-2.5 rounded-lg bg-[#E06D28]/15 hover:bg-[#E06D28]/25 text-[#FB923C] font-bold text-[11px] flex items-center gap-1 border border-[#E06D28]/30 transition-colors cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>{isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip PDF'}</span>
+                  <span>{isAr ? 'قسيمة الراتب' : 'View Payslip PDF'}</span>
                 </button>
               </div>
             )}

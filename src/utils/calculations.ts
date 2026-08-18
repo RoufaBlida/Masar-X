@@ -30,25 +30,26 @@ export function getWorkingDaysInMonth(year: number, monthIndex: number, employee
 }
 
 /**
- * Calculates daily rate for deduction
+ * Calculates daily rate based on 30-day standard month with paid weekends
+ * Formula: Base Salary ÷ 30 days
  */
 export function calculateDailyRate(employee: Employee, currentDateStr: string, settings: AppSettings): number {
-  const date = new Date(currentDateStr);
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
   if (employee.deductionType === 'fixed_amount' && employee.fixedDeductionRate) {
     return employee.fixedDeductionRate;
   }
 
-  // Divided by working days in current month
-  const workingDays = getWorkingDaysInMonth(year, month, employee.customWeekendDays, settings.defaultWeekendDays);
-  const rate = employee.baseSalary / workingDays;
+  // Monthly base salary divided by standard 30-day month (weekends are paid)
+  const rate = (employee.baseSalary || 250) / 30;
   return Math.round(rate * 100) / 100;
 }
 
 /**
- * Calculates accrued salary for an employee up to the given date or current month
+ * Calculates progressive accrued salary for an employee up to the given date:
+ * - Daily Rate = Base Salary ÷ 30 days (weekends are fully paid)
+ * - Each attended workday or paid weekend/excused day earns 1 daily rate ($10/day)
+ * - Absent days are deducted
+ * - Accrued compensation increases day by day (e.g. Day 1 = $10, Day 7 = $70)
+ * - If terminated, shows exact settlement amount earned to date immediately
  */
 export function calculateAccruedSalary(
   employee: Employee,
@@ -59,15 +60,30 @@ export function calculateAccruedSalary(
   accruedAmount: number;
   totalPresentDays: number;
   totalAbsentDays: number;
+  totalWeekendDays: number;
+  totalExcusedDays: number;
   totalDeductions: number;
   dailyRate: number;
   baseSalary: number;
   ratingAverage: number;
+  daysPassedInPeriod: number;
 } {
-  const date = new Date(currentDateStr);
-  const currentYear = date.getFullYear();
-  const currentMonth = date.getMonth();
-  const currentDay = date.getDate();
+  const currDate = new Date(currentDateStr);
+  const currentYear = currDate.getFullYear();
+  const currentMonth = currDate.getMonth();
+  const currentDay = currDate.getDate();
+
+  // Determine starting date for calculation:
+  // If employee started in this current month, start from their startDate day; otherwise day 1 of month
+  let startDay = 1;
+  if (employee.startDate) {
+    const empStart = new Date(employee.startDate);
+    if (empStart.getFullYear() === currentYear && empStart.getMonth() === currentMonth) {
+      startDay = Math.max(1, Math.min(currentDay, empStart.getDate()));
+    }
+  }
+
+  const dailyRate = calculateDailyRate(employee, currentDateStr, settings);
 
   // Filter records for this employee in the current month
   const empRecords = records.filter(r => {
@@ -76,45 +92,69 @@ export function calculateAccruedSalary(
     return rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth;
   });
 
-  const dailyRate = calculateDailyRate(employee, currentDateStr, settings);
-
   let presentCount = 0;
   let absentCount = 0;
+  let weekendCount = 0;
+  let excusedCount = 0;
   let totalDeductions = 0;
   let ratingSum = 0;
   let ratingCount = 0;
 
+  // Track map of records by date
+  const recordMap = new Map<string, AttendanceRecord>();
   empRecords.forEach(r => {
-    if (r.status === 'present') {
-      presentCount++;
-    } else if (r.status === 'absent') {
-      absentCount++;
-      const deduction = r.deductionAmount > 0 ? r.deductionAmount : dailyRate;
-      totalDeductions += deduction;
-    }
+    recordMap.set(r.date, r);
     if (r.adminRating && r.adminRating > 0) {
       ratingSum += r.adminRating;
       ratingCount++;
     }
   });
 
-  // Calculate accrued earned amount
-  // For monthly contract: Base salary prorated by days elapsed minus deductions
-  const workingDaysInMonth = getWorkingDaysInMonth(currentYear, currentMonth, employee.customWeekendDays, settings.defaultWeekendDays);
-  
-  // Count working days passed so far this month
-  let workingDaysPassed = 0;
-  for (let d = 1; d <= currentDay; d++) {
+  // Calculate day-by-day earned amounts from startDay to currentDay
+  let earnedDays = 0;
+  let daysPassed = 0;
+
+  for (let d = startDay; d <= currentDay; d++) {
+    daysPassed++;
     const dStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    if (!isWeekend(dStr, employee.customWeekendDays, settings.defaultWeekendDays)) {
-      workingDaysPassed++;
+    const rec = recordMap.get(dStr);
+    const isWk = isWeekend(dStr, employee.customWeekendDays, settings.defaultWeekendDays);
+
+    if (rec) {
+      if (rec.status === 'present') {
+        presentCount++;
+        earnedDays += 1;
+      } else if (rec.status === 'absent') {
+        absentCount++;
+        const deduction = rec.deductionAmount > 0 ? rec.deductionAmount : dailyRate;
+        totalDeductions += deduction;
+        // Absent day is 0 earnings
+      } else if (rec.status === 'weekend') {
+        weekendCount++;
+        earnedDays += 1; // Weekends are paid
+      } else if (rec.status === 'excused') {
+        excusedCount++;
+        earnedDays += 1; // Excused leave is paid
+      }
+    } else {
+      // No explicit record logged yet
+      if (isWk) {
+        weekendCount++;
+        earnedDays += 1; // Paid weekend
+      } else {
+        // Default unreviewed workday before today or today:
+        // Counts as earned day unless explicitly marked absent
+        presentCount++;
+        earnedDays += 1;
+      }
     }
   }
 
-  // Earned up to today = (workingDaysPassed * dailyRate) - (absentCount * dailyRate)
-  // Which is equivalent to present working days * dailyRate
-  let accrued = Math.max(0, (workingDaysPassed * dailyRate) - totalDeductions);
-  accrued = Math.min(employee.baseSalary, Math.round(accrued * 100) / 100);
+  // Accrued amount = Earned days × Daily Rate
+  let accrued = Math.max(0, Math.round((earnedDays * dailyRate) * 100) / 100);
+  
+  // Cap accrued at baseSalary for the month
+  accrued = Math.min(employee.baseSalary, accrued);
 
   const ratingAvg = ratingCount > 0 ? Math.round((ratingSum / ratingCount) * 10) / 10 : 5.0;
 
@@ -122,10 +162,13 @@ export function calculateAccruedSalary(
     accruedAmount: accrued,
     totalPresentDays: presentCount,
     totalAbsentDays: absentCount,
+    totalWeekendDays: weekendCount,
+    totalExcusedDays: excusedCount,
     totalDeductions: Math.round(totalDeductions * 100) / 100,
     dailyRate,
     baseSalary: employee.baseSalary,
-    ratingAverage: ratingAvg
+    ratingAverage: ratingAvg,
+    daysPassedInPeriod: daysPassed
   };
 }
 

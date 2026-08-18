@@ -31,8 +31,11 @@ import {
   CalendarCheck2,
   Volume2,
   VolumeX,
-  BellRing
+  BellRing,
+  Pencil,
+  Edit3
 } from 'lucide-react';
+import { EditAdminModal } from './EditAdminModal';
 import { soundEffects } from '../utils/soundEffects';
 import { 
   DeductionType, 
@@ -88,6 +91,7 @@ export const SettingsView: React.FC = () => {
   // Selected Supervisor for in-depth Permission Editing
   const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
   const [editingPerms, setEditingPerms] = useState<AdminPermissions | null>(null);
+  const [editingAdminModal, setEditingAdminModal] = useState<AdminAccount | null>(null);
 
   const daysOfWeek = [
     { day: 0, ar: 'الأحد', en: 'Sunday' },
@@ -283,7 +287,7 @@ export const SettingsView: React.FC = () => {
 
         {/* Master Admin Info & Password Setting */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-[#17181D] border border-[#2D3039] space-y-2">
+          <div className="p-4 rounded-xl bg-[#17181D] border border-[#2D3039] space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Crown className="w-3.5 h-3.5 text-[#FB923C]" />
@@ -293,8 +297,19 @@ export const SettingsView: React.FC = () => {
                 {isAr ? 'المالك الأساسي' : 'Primary Owner'}
               </span>
             </div>
-            <p className="text-xs font-mono font-bold text-[#FB923C]">Roufablida90@gmail.com</p>
-            <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+            <div>
+              <label className="block text-[11px] font-bold text-[#9CA3AF] mb-1">
+                {isAr ? 'البريد الإلكتروني المعتمد للمدير العام' : 'Master Admin Email'}
+              </label>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="master@domain.com"
+                className="w-full bg-[#1F2127] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-1.5 px-3 text-xs text-[#FB923C] font-mono font-bold placeholder-[#6B7280] focus:outline-none transition-colors"
+              />
+            </div>
+            <p className="text-[10px] text-[#9CA3AF] leading-relaxed">
               {isAr 
                 ? 'الحساب الإداري الأساسي المصرح له بالدخول والتحكم الكامل في جميع بيانات النظام وتفويض المشرفين وتحديد صلاحياتهم.' 
                 : 'Primary authorized owner with full administrative access and permissions governance.'}
@@ -533,6 +548,18 @@ export const SettingsView: React.FC = () => {
 
                       {/* Action Buttons */}
                       <div className="flex items-center gap-2 self-end sm:self-auto">
+                        {isSuperAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingAdminModal(admin)}
+                            className="py-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-[#262831] hover:bg-[#323642] text-[#FB923C] border border-[#E06D28]/30 transition-colors cursor-pointer"
+                            title={isAr ? 'تعديل الاسم والبريد وكلمة المرور والصلاحيات' : 'Edit name, email, password, and permissions'}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>{isAr ? 'تعديل الحساب والبيانات' : 'Edit Account'}</span>
+                          </button>
+                        )}
+
                         {isSuperAdmin && admin.role !== 'super_admin' && (
                           <button
                             type="button"
@@ -551,7 +578,7 @@ export const SettingsView: React.FC = () => {
                             }`}
                           >
                             <Sliders className="w-3.5 h-3.5" />
-                            <span>{isEditingThis ? (isAr ? 'إغلاق الصلاحيات' : 'Close') : (isAr ? 'تعديل الصلاحيات' : 'Edit Permissions')}</span>
+                            <span>{isEditingThis ? (isAr ? 'إغلاق الصلاحيات' : 'Close') : (isAr ? 'الصلاحيات' : 'Permissions')}</span>
                           </button>
                         )}
 
@@ -981,6 +1008,14 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Edit Admin Modal */}
+      {editingAdminModal && (
+        <EditAdminModal
+          admin={editingAdminModal}
+          onClose={() => setEditingAdminModal(null)}
+        />
+      )}
     </div>
   );
 };

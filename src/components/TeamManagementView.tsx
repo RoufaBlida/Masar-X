@@ -164,14 +164,14 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
             className="bg-[#17181D] border border-[#2D3039] text-[#9CA3AF] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#E06D28]"
           >
             <option value="all">{isAr ? 'جميع التخصصات' : 'All Roles'}</option>
-            <option value="video_editor">{t.roleVideoEditor}</option>
-            <option value="motion_designer">{t.roleMotionDesigner}</option>
-            <option value="thumbnail_designer">{t.roleThumbnailDesigner}</option>
-            <option value="scriptwriter">{t.roleScriptwriter}</option>
-            <option value="sound_designer">{t.roleSoundDesigner}</option>
-            <option value="social_media_manager">{t.roleSocialMedia}</option>
-            <option value="developer">{isAr ? 'مطور برمجيات' : 'Developer'}</option>
-            <option value="other">{isAr ? 'تخصص آخر' : 'Other'}</option>
+            <option value="video_editor">{t.role_video_editor}</option>
+            <option value="motion_designer">{t.role_motion_designer}</option>
+            <option value="thumbnail_designer">{t.role_thumbnail_designer}</option>
+            <option value="scriptwriter">{t.role_scriptwriter}</option>
+            <option value="sound_designer">{t.role_sound_designer}</option>
+            <option value="social_media_manager">{t.role_social_media_manager}</option>
+            <option value="developer">{t.role_developer}</option>
+            <option value="other">{t.role_other}</option>
           </select>
 
           {/* Contract Filter (Active Tab only) */}
@@ -182,8 +182,8 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
               className="bg-[#17181D] border border-[#2D3039] text-[#9CA3AF] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#E06D28]"
             >
               <option value="all">{isAr ? 'جميع العقود' : 'All Contracts'}</option>
-              <option value="1_week_trial">{t.contract1Week}</option>
-              <option value="3_month_contract">{t.contract3Month}</option>
+              <option value="1_week_trial">{t.contract_1_week_trial}</option>
+              <option value="3_month_contract">{t.contract_3_month_contract}</option>
             </select>
           )}
         </div>
@@ -195,7 +195,7 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
           {filteredEmployees.length === 0 ? (
             <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-12 text-center">
               <Users className="w-12 h-12 text-[#6B7280] mx-auto mb-3 stroke-[1.5]" />
-              <h3 className="text-sm font-bold text-[#FFFFFF]">{t.noEmployeesFound}</h3>
+              <h3 className="text-sm font-bold text-[#FFFFFF]">{isAr ? 'لم يتم العثور على أي موظف' : 'No employees found'}</h3>
               <p className="text-xs text-[#9CA3AF] mt-1">
                 {searchQuery ? (isAr ? 'لا توجد نتائج مطابقة لبحثك' : 'No results match your search') : (isAr ? 'لم يتم إضافة أي موظف نشط بعد' : 'No active employees added yet')}
               </p>
@@ -214,7 +214,7 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
               {filteredEmployees.map((emp) => {
                 const stats = calculateAccruedSalary(emp, attendanceRecords, currentDate, settings);
                 const isTrial = emp.contractType === '1_week_trial';
-                const trialProg = getTrialProgress(emp.startDate, currentDate);
+                const trialProg = getTrialProgress(emp, currentDate);
 
                 return (
                   <div
@@ -341,7 +341,7 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                           <button
                             onClick={() => setPayslipEmployee(emp)}
                             className="py-1.5 px-2 rounded-lg text-xs font-medium text-[#FB923C] hover:bg-[#E06D28]/15 border border-[#E06D28]/30 transition-colors cursor-pointer flex items-center gap-1"
-                            title={isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip'}
+                            title={isAr ? 'قسيمة الراتب' : 'View Payslip'}
                           >
                             <FileText className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">{isAr ? 'قسيمة الراتب' : 'Payslip'}</span>

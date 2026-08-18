@@ -133,8 +133,8 @@ export const translations = {
     weeklySummarySchedule: 'الموعد: كل خميس مساءً',
     weeklySummaryContent: 'يتضمن: سجل الحضور، الرواتب المستحقة، الموظفين الجدد وقرارات التجربة، وإنجازات الفريق.',
 
-    // Monthly Payslip (Fiche de Paie)
-    monthlyPayslip: 'قسيمة الراتب الشهرية (Fiche de Paie)',
+    // Monthly Payslip
+    monthlyPayslip: 'قسيمة الراتب الشهرية',
     viewDownloadPayslip: 'عرض وتحميل قسيمة الراتب (PDF)',
     payslipSubtitle: 'كشف مالي معتمد بالحضور، الغيابات، الخصومات المطبقة، وصافي الراتب للتحويل',
     downloadPayslipPdf: 'تحميل قسيمة الراتب PDF',
@@ -276,8 +276,8 @@ export const translations = {
     weeklySummarySchedule: 'Schedule: Every Thursday Evening',
     weeklySummaryContent: 'Includes: Attendance records, accrued salaries, new trial candidates, and project outputs.',
 
-    // Monthly Payslip (Fiche de Paie)
-    monthlyPayslip: 'Monthly Payslip (Fiche de Paie)',
+    // Monthly Payslip
+    monthlyPayslip: 'Monthly Salary Payslip',
     viewDownloadPayslip: 'View & Download Payslip (PDF)',
     payslipSubtitle: 'Verified statement with attendance, absence reasons, deductions & net payout',
     downloadPayslipPdf: 'Download Payslip PDF',
