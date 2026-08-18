@@ -22,7 +22,8 @@ import {
   initialSettings 
 } from '../data/initialData';
 import { Language, translations } from '../utils/translations';
-import { calculateDailyRate, isWeekend } from '../utils/calculations';
+import { calculateDailyRate, isWeekend, calculateAccruedSalary } from '../utils/calculations';
+import { soundEffects } from '../utils/soundEffects';
 import { 
   testFirestoreConnection, 
   db, 
@@ -43,7 +44,7 @@ import {
 } from '../firebase/firestoreService';
 
 interface AppContextType {
-  // Authentication & Session
+  // Auth State & Actions
   authUser: AuthUser | null;
   registerAdmin: (name: string, email: string, password?: string, companyName?: string) => Promise<{ success: boolean; error?: string }>;
   loginAsAdmin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
@@ -55,6 +56,9 @@ interface AppContextType {
   updateAuthorizedAdminPermissions: (id: string, permissions: AdminPermissions) => void;
   removeAuthorizedAdmin: (id: string) => void;
   updateMasterAdminPassword: (newPass: string) => void;
+
+  // Sound System
+  toggleSound: () => void;
 
   // Navigation & Mode
   activeTab: ActiveTab;
@@ -89,6 +93,7 @@ interface AppContextType {
   addEmployee: (emp: Omit<Employee, 'id' | 'createdAt' | 'accessCode'>) => Employee;
   updateEmployee: (id: string, updates: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
+  restoreEmployee: (id: string) => void;
   
   // Attendance actions
   getRecordForEmployeeAndDate: (empId: string, dateStr: string) => AttendanceRecord | undefined;
@@ -107,7 +112,7 @@ interface AppContextType {
   
   // Decisions & Notifications
   promoteToThreeMonths: (empId: string, newSalary?: number, customNotes?: string) => void;
-  endEmployeeTrial: (empId: string, reason?: string) => void;
+  endEmployeeTrial: (empId: string, reason?: string, notes?: string) => void;
   sendCustomNotification: (notif: Omit<DecisionNotification, 'id' | 'timestamp' | 'status'>) => void;
   sendWeeklySummaryEmail: () => void;
   
@@ -141,10 +146,8 @@ const purgeLegacyLocalStorage = () => {
       'masar_app_v1_notifications',
       'masar_app_v2_employees',
       'masar_app_v2_attendance',
-      'masar_app_v2_notifications',
       'masar_app_v3_employees',
-      'masar_app_v3_attendance',
-      'masar_app_v3_notifications'
+      'masar_app_v3_attendance'
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
   } catch (e) {
@@ -201,8 +204,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'settings');
-    return saved ? JSON.parse(saved) : initialSettings;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (!parsed.adminPassword) parsed.adminPassword = 'Masar@Admin2026';
+        if (parsed.soundEnabled === undefined) parsed.soundEnabled = true;
+        return parsed;
+      } catch {
+        return initialSettings;
+      }
+    }
+    return initialSettings;
   });
+
+  // Sound effects sync
+  useEffect(() => {
+    soundEffects.setEnabled(settings.soundEnabled !== false);
+  }, [settings.soundEnabled]);
 
   // Employees - Clean starting state
   const [employees, setEmployees] = useState<Employee[]>(() => {
@@ -210,7 +228,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Filter out legacy mock data if present
         return parsed.filter((e: Employee) => !['emp-1', 'emp-2', 'emp-3', 'emp-4', 'emp-5'].includes(e.id));
       } catch {
         return [];
@@ -248,82 +265,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [authUser]);
 
-  // Test connection and attempt initial cloud hydrate on startup
+  // Initial cloud check and sync
   useEffect(() => {
     let isMounted = true;
-
-    async function initCloud() {
+    const initializeCloud = async () => {
       try {
-        const isOnline = await testFirestoreConnection();
-        if (isMounted) {
-          setIsCloudConnected(isOnline);
-        }
+        const connected = await testFirestoreConnection();
+        if (!isMounted) return;
+        setIsCloudConnected(connected);
 
-        if (isOnline) {
+        if (connected) {
           const cloudData = await fetchAllFromCloud();
-          if (isMounted && cloudData) {
-            // Check if remote data only contains old mock employees
-            const hasLegacyMock = cloudData.employees.some(e => ['emp-1', 'emp-2', 'emp-3', 'emp-4', 'emp-5'].includes(e.id));
-            if (hasLegacyMock) {
-              await clearAllCloudData();
-              setEmployees([]);
-              setAttendanceRecords([]);
-            } else if (cloudData.employees.length > 0) {
-              setEmployees(cloudData.employees);
-              if (cloudData.attendanceRecords.length > 0) {
-                setAttendanceRecords(cloudData.attendanceRecords);
-              }
-            }
+          if (!isMounted) return;
 
-            if (cloudData.settings) {
-              setSettings(cloudData.settings);
-            }
-            setLastSyncedTime(new Date().toLocaleTimeString('ar-SA'));
+          // Merge employees if cloud has records
+          if (cloudData.employees && cloudData.employees.length > 0) {
+            setEmployees(cloudData.employees);
+          } else if (employees.length > 0) {
+            // Push local clean data to cloud
+            await syncAllToCloud(employees, attendanceRecords, settings);
           }
+
+          if (cloudData.attendance && cloudData.attendance.length > 0) {
+            setAttendanceRecords(cloudData.attendance);
+          }
+
+          if (cloudData.settings) {
+            setSettings(prev => ({ ...prev, ...cloudData.settings }));
+          }
+
+          setLastSyncedTime(new Date().toLocaleTimeString('sv-SE'));
         }
       } catch (err) {
-        console.warn('Initial cloud database connection check:', err);
+        console.warn('Initial cloud sync error (operating in secure local mode):', err);
       }
-    }
+    };
 
-    initCloud();
-    return () => { isMounted = false; };
+    initializeCloud();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Manual cloud synchronization
+  // Manual cloud sync
   const syncWithCloud = async (): Promise<boolean> => {
     setIsCloudSyncing(true);
     try {
-      const res = await syncAllToCloud(employees, attendanceRecords, settings);
-      if (res.success) {
-        setIsCloudConnected(true);
-        const timeNow = new Date().toLocaleTimeString('ar-SA');
-        setLastSyncedTime(timeNow);
-        showToast(
-          lang === 'ar' ? 'تمت المزامنة وحفظ البيانات في قاعدة بيانات Firebase بنجاح!' : 'Successfully synced data with Firebase Firestore!',
-          'success'
-        );
+      const connected = await testFirestoreConnection();
+      setIsCloudConnected(connected);
+
+      if (!connected) {
+        showToast(isAr ? 'تعذر الاتصال بقاعدة بيانات Firestore السحابية' : 'Firestore offline', 'warning');
         setIsCloudSyncing(false);
-        return true;
-      } else {
-        throw new Error(res.error);
+        return false;
       }
+
+      await syncAllToCloud(employees, attendanceRecords, settings);
+      setLastSyncedTime(new Date().toLocaleTimeString('sv-SE'));
+      showToast(isAr ? 'تمت مزامنة البيانات السحابية مع Firestore بنجاح ☁️' : 'Synced with Firestore cloud', 'success');
+      setIsCloudSyncing(false);
+      return true;
     } catch (err) {
-      console.error('Cloud Sync failed:', err);
-      showToast(
-        lang === 'ar' ? 'تعذر إتمام المزامنة مع السحابة، جاري حفظ البيانات محلياً' : 'Could not sync with cloud, saving locally',
-        'warning'
-      );
+      console.error('Cloud sync error:', err);
+      showToast(isAr ? 'فشلت المزامنة مع السحابة' : 'Sync failed', 'warning');
       setIsCloudSyncing(false);
       return false;
     }
   };
 
-  // Authentication methods
+  // Auth Operations
   const registerAdmin = async (
-    name: string,
-    email: string,
-    password?: string,
+    name: string, 
+    email: string, 
+    password?: string, 
     companyName?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -336,7 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updatedSettings: AppSettings = {
         ...settings,
         adminEmail: cleanEmail,
-        adminPassword: password?.trim() || settings.adminPassword || '',
+        adminPassword: password?.trim() || settings.adminPassword || 'Masar@Admin2026',
         companyName: companyName?.trim() || settings.companyName || (isAr ? 'منظومة مسار' : 'Masar')
       };
       setSettings(updatedSettings);
@@ -348,7 +362,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         name: cleanName,
         email: cleanEmail,
         role: 'admin',
-        adminRole: 'super_admin'
+        adminRole: 'super_admin',
+        permissions: SUPER_ADMIN_PERMISSIONS
       };
       setAuthUser(userObj);
       setIsEmployeePortal(false);
@@ -377,18 +392,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const enteredPassword = password ? password.trim() : '';
 
       if (!cleanEmail) {
-        return { success: false, error: isAr ? 'يرجى إدخال البريد الإلكتروني' : 'Please enter admin email' };
+        return { success: false, error: isAr ? 'يرجى إدخال البريد الإلكتروني للإدارة' : 'Please enter admin email' };
+      }
+
+      // STRICT SECURITY: Require Password!
+      if (!enteredPassword) {
+        return { success: false, error: isAr ? 'يرجى إدخال كلمة المرور للمتابعة' : 'Password is required' };
       }
 
       // 1. Check Master Super Admin (Roufablida90@gmail.com / Master Account)
       if (isMasterAdminEmail(cleanEmail)) {
-        if (settings.adminPassword && enteredPassword && settings.adminPassword !== enteredPassword) {
-          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لحساب المدير العام' : 'Incorrect password for master admin' };
+        const expectedMasterPass = (settings.adminPassword || 'Masar@Admin2026').trim();
+        if (enteredPassword !== expectedMasterPass) {
+          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لحساب الإدارة' : 'Incorrect password' };
         }
 
         const userObj: AuthUser = {
           id: 'master-admin',
-          name: isAr ? 'المشرف العام (المالك)' : 'Master Super Admin',
+          name: isAr ? 'المشرف العام' : 'Super Admin',
           email: cleanEmail,
           role: 'admin',
           adminRole: 'super_admin',
@@ -405,8 +426,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const match = authorizedList.find(a => a.email.toLowerCase() === cleanEmail);
 
       if (match) {
-        if (match.password && enteredPassword && match.password !== enteredPassword) {
-          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لهذا المشرف' : 'Incorrect password' };
+        const expectedPass = (match.password || settings.adminPassword || 'Masar@Admin2026').trim();
+        if (enteredPassword !== expectedPass) {
+          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لحساب المشرف' : 'Incorrect password' };
         }
 
         const userObj: AuthUser = {
@@ -423,12 +445,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: true };
       }
 
-      // 3. Unauthorized
+      // 3. Unauthorized - SECURE: NEVER LEAK ADMIN EMAILS
       return { 
         success: false, 
         error: isAr 
-          ? 'عذراً، هذا البريد غير مصرح له كإدارة للنظام. يجب أن يقوم المشرف العام (Roufablida90@gmail.com) بإضافتك وتحديد صلاحياتك من داخل الإعدادات أولاً.' 
-          : 'Unauthorized. You must be added and granted permissions by the Super Admin inside settings.' 
+          ? 'عذراً، هذا الحساب غير مصرح له بالدخول كإدارة للنظام. يرجى مراجعة إدارة المنظومة.' 
+          : 'Unauthorized access. Please contact system management.' 
       };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
@@ -457,7 +479,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
         setAuthUser(userObj);
         setIsEmployeePortal(false);
-        showToast(isAr ? `تم تسجيل الدخول بحساب المشرف العام: ${userEmail}` : `Signed in as Super Admin`, 'success');
+        showToast(isAr ? `تم تسجيل الدخول بحساب المشرف العام` : `Signed in as Super Admin`, 'success');
         return { success: true };
       }
 
@@ -477,19 +499,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { success: true };
       }
 
-      // Unauthorized Google account
+      // Unauthorized Google account - SECURE: NEVER LEAK SENSITIVE EMAILS
       return {
         success: false,
         error: isAr
-          ? `حساب Google هذا (${userEmail}) غير مصرح له. يجب أن يقوم المشرف العام (Roufablida90@gmail.com) بإضافتك أولاً من داخل الإعدادات.`
-          : `This Google account (${userEmail}) is not authorized. Ask the Super Admin to add you.`
+          ? `عذراً، حساب Google هذا غير مصرح له بالوصول الإداري. يرجى مراجعة إدارة المنظومة لتفويض الحساب أولاً.`
+          : `This Google account is not authorized for administrative access.`
       };
     } catch (err) {
       console.warn('Google Sign In:', err);
       return { 
         success: false, 
         error: isAr 
-          ? 'تعذر إتمام تسجيل الدخول عبر Google. يمكنك استخدام الدخول المباشر بالبريد.' 
+          ? 'تعذر إتمام تسجيل الدخول عبر Google. يمكنك استخدام الدخول المباشر بالبريد وكلمة المرور.' 
           : 'Google sign-in was canceled or failed.' 
       };
     }
@@ -531,11 +553,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateMasterAdminPassword = (newPass: string) => {
-    const updatedSettings = { ...settings, adminPassword: newPass.trim() };
+    const pass = newPass.trim();
+    if (!pass) return;
+    const updatedSettings = { ...settings, adminPassword: pass };
     setSettings(updatedSettings);
     localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
     saveSettingsToCloud(updatedSettings);
-    showToast(isAr ? 'تم تحديث كلمة مرور الإدارة بنجاح' : 'Master password updated', 'success');
+    showToast(isAr ? 'تم تحديث كلمة مرور الإدارة بنجاح 🔒' : 'Master password updated', 'success');
+  };
+
+  const toggleSound = () => {
+    const updated = !settings.soundEnabled;
+    const newSettings = { ...settings, soundEnabled: updated };
+    setSettings(newSettings);
+    soundEffects.setEnabled(updated);
+    if (updated) soundEffects.playNotification();
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(newSettings));
+    saveSettingsToCloud(newSettings);
+    showToast(isAr ? (updated ? 'تم تفعيل صوت الإشعارات 🔔' : 'تم كتم صوت الإشعارات 🔕') : (updated ? 'Sound enabled' : 'Sound muted'), 'info');
   };
 
   const loginAsEmployee = async (accessCode: string): Promise<{ success: boolean; error?: string; employee?: Employee }> => {
@@ -627,6 +662,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const showToast = (text: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToastMessage({ text, type });
+    if (settings.soundEnabled !== false) {
+      if (type === 'success') {
+        soundEffects.playSuccess();
+      } else if (type === 'warning') {
+        soundEffects.playWarning();
+      } else {
+        soundEffects.playNotification();
+      }
+    }
     setTimeout(() => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
     }, 4000);
@@ -652,25 +696,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setEmployees(prev => [newEmp, ...prev]);
-    showToast(`${t.addEmployee}: ${newEmp.name}`, 'success');
-
-    // Background sync to Firestore
     saveEmployeeToCloud(newEmp).catch(err => console.warn('Firestore employee save:', err));
 
-    // Create initial notification for onboarding
-    const notif: DecisionNotification = {
-      id: `notif-${Date.now()}`,
-      employeeId: newId,
-      employeeName: newEmp.name,
-      type: 'custom_email',
-      title: `ترحيب بالموظف الجديد: ${newEmp.name}`,
-      message: `تم إنشاء حساب الموظف براتب تجريبي $${newEmp.baseSalary} وكود دخول: ${code}. تم إرسال معلومات البدء عبر Resend إلى ${newEmp.email}.`,
-      sentToEmail: newEmp.email,
-      status: 'delivered',
-      timestamp: new Date().toLocaleString('sv-SE')
-    };
-    setNotifications(prev => [notif, ...prev]);
-
+    showToast(
+      isAr 
+        ? `تمت إضافة الموظف ${newEmp.name} بنجاح! كود الدخول: ${newEmp.accessCode}` 
+        : `Employee added! Code: ${newEmp.accessCode}`,
+      'success'
+    );
     return newEmp;
   };
 
@@ -679,7 +712,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updatedList = prev.map(emp => {
         if (emp.id === id) {
           const updatedEmp = { ...emp, ...updates };
-          // Background sync to Firestore
           saveEmployeeToCloud(updatedEmp).catch(err => console.warn('Firestore employee update:', err));
           return updatedEmp;
         }
@@ -696,6 +728,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAttendanceRecords(prev => prev.filter(r => r.employeeId !== id));
     deleteEmployeeFromCloud(id).catch(err => console.warn('Firestore delete:', err));
     showToast(`تم حذف ${emp?.name || 'الموظف'} من النظام`, 'info');
+  };
+
+  const restoreEmployee = (empId: string) => {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    const updatedEmp: Employee = {
+      ...emp,
+      status: 'active',
+      contractType: emp.contractType === 'terminated' ? '3_month_contract' : emp.contractType
+    };
+
+    setEmployees(prev => prev.map(e => (e.id === empId ? updatedEmp : e)));
+    saveEmployeeToCloud(updatedEmp).catch(err => console.warn('Firestore restore save:', err));
+    showToast(isAr ? `تمت استعادة ${emp.name} وإعادته إلى قائمة الفريق النشط` : `Employee restored successfully`, 'success');
   };
 
   const getRecordForEmployeeAndDate = (empId: string, dateStr: string): AttendanceRecord | undefined => {
@@ -759,22 +806,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dateStr: string, 
     evalData: { rating?: number; speed?: DeliverySpeed; feedback?: string }
   ) => {
-    let targetRec: AttendanceRecord;
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    let targetRecord: AttendanceRecord;
+
     setAttendanceRecords(prev => {
       const existingIndex = prev.findIndex(r => r.employeeId === empId && r.date === dateStr);
       if (existingIndex >= 0) {
         const updated = [...prev];
-        targetRec = {
+        targetRecord = {
           ...updated[existingIndex],
-          ...(evalData.rating !== undefined && { adminRating: evalData.rating }),
-          ...(evalData.speed !== undefined && { adminDeliverySpeed: evalData.speed }),
-          ...(evalData.feedback !== undefined && { adminFeedback: evalData.feedback }),
+          adminRating: evalData.rating !== undefined ? evalData.rating : updated[existingIndex].adminRating,
+          adminDeliverySpeed: evalData.speed !== undefined ? evalData.speed : updated[existingIndex].adminDeliverySpeed,
+          adminFeedback: evalData.feedback !== undefined ? evalData.feedback : updated[existingIndex].adminFeedback,
           updatedAt: new Date().toISOString()
         };
-        updated[existingIndex] = targetRec;
+        updated[existingIndex] = targetRecord;
         return updated;
       } else {
-        targetRec = {
+        targetRecord = {
           id: `att-${empId}-${dateStr}`,
           employeeId: empId,
           date: dateStr,
@@ -785,13 +836,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           deductionAmount: 0,
           updatedAt: new Date().toISOString()
         };
-        return [targetRec, ...prev];
+        return [targetRecord, ...prev];
       }
     });
 
-    if (targetRec!) {
-      saveAttendanceRecordToCloud(targetRec).catch(err => console.warn('Firestore eval save:', err));
+    // Background sync to Firestore
+    if (targetRecord!) {
+      saveAttendanceRecordToCloud(targetRecord).catch(err => console.warn('Firestore eval save:', err));
     }
+    showToast(t.evaluationSaved, 'success');
   };
 
   const updateEmployeeReport = (
@@ -799,7 +852,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dateStr: string, 
     reportData: { reportText: string; deliverableUrl?: string; reportImages?: string[] }
   ) => {
-    const timeNow = new Date().toLocaleTimeString('ar-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
     let targetRec: AttendanceRecord;
 
     setAttendanceRecords(prev => {
@@ -809,9 +861,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         targetRec = {
           ...updated[existingIndex],
           employeeTaskReport: reportData.reportText,
-          videoDeliverableUrl: reportData.deliverableUrl !== undefined ? reportData.deliverableUrl : updated[existingIndex].videoDeliverableUrl,
-          reportImages: reportData.reportImages !== undefined ? reportData.reportImages : updated[existingIndex].reportImages,
-          employeeSubmittedAt: timeNow,
+          videoDeliverableUrl: reportData.deliverableUrl || updated[existingIndex].videoDeliverableUrl,
+          reportImages: reportData.reportImages || updated[existingIndex].reportImages,
+          employeeSubmittedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         updated[existingIndex] = targetRec;
@@ -825,7 +877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           employeeTaskReport: reportData.reportText,
           videoDeliverableUrl: reportData.deliverableUrl,
           reportImages: reportData.reportImages,
-          employeeSubmittedAt: timeNow,
+          employeeSubmittedAt: new Date().toISOString(),
           deductionAmount: 0,
           updatedAt: new Date().toISOString()
         };
@@ -923,16 +975,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(`تهانينا! تم ترقية ${emp.name} لعقد 3 أشهر وإرسال الإشعار عبر Resend`, 'success');
   };
 
-  const endEmployeeTrial = (empId: string, reason?: string) => {
+  const endEmployeeTrial = (empId: string, reason?: string, notes?: string) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
+
+    const stats = calculateAccruedSalary(emp, attendanceRecords, currentDate, settings);
+    const today = new Date().toISOString().split('T')[0];
 
     const updatedEmp: Employee = {
       ...emp,
       contractType: 'terminated' as ContractType,
       status: 'terminated',
-      terminatedAt: new Date().toISOString().split('T')[0],
-      notes: reason ? `${emp.notes || ''} \n[إنهاء التجربة]: ${reason}` : emp.notes
+      terminatedAt: today,
+      terminationDate: today,
+      terminationReason: reason || (isAr ? 'عدم اجتياز فترة التجربة' : 'Trial concluded'),
+      terminationNotes: notes || '',
+      terminatedBy: authUser?.name || (isAr ? 'المشرف العام' : 'Super Admin'),
+      finalPayout: stats.accruedAmount,
+      notes: reason ? `${emp.notes || ''} \n[إنهاء الخدمة]: ${reason} ${notes ? `(${notes})` : ''}` : emp.notes
     };
 
     setEmployees(prev => prev.map(e => (e.id === empId ? updatedEmp : e)));
@@ -943,14 +1003,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       employeeId: emp.id,
       employeeName: emp.name,
       type: 'terminate_trial',
-      title: `إشعار نهاية الفترة التجريبية: ${emp.name}`,
-      message: `نشكر ${emp.name} على المجهود المبذول خلال الأسبوع التجريبي. تم إنهاء التجربة مع تسوية المستحقات المالية المستحقة. تم إرسال الإشعار لـ ${emp.email}.`,
+      title: isAr ? `إشعار إنهاء الخدمة: ${emp.name}` : `Contract Concluded: ${emp.name}`,
+      message: isAr
+        ? `نشكر ${emp.name} على المجهود المبذول. سبب الإنهاء: (${updatedEmp.terminationReason}). تم تسوية المستحقات المالية (${stats.accruedAmount.toFixed(0)}$). تم إرسال الإشعار لـ ${emp.email}.`
+        : `Thank you ${emp.name} for your contribution during trial period.`,
       sentToEmail: emp.email,
       status: 'delivered',
       timestamp: new Date().toLocaleString('sv-SE')
     };
     setNotifications(prev => [notif, ...prev]);
-    showToast(`تم إنهاء تجربة ${emp.name} وتسجيل الإشعار في النظام`, 'info');
+    showToast(isAr ? `تم إنهاء خدمة ${emp.name} ونقل الملف إلى سجل الأرشيف` : `Employee archived`, 'info');
   };
 
   const sendCustomNotification = (notifData: Omit<DecisionNotification, 'id' | 'timestamp' | 'status'>) => {
@@ -1010,6 +1072,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateAuthorizedAdminPermissions,
         removeAuthorizedAdmin,
         updateMasterAdminPassword,
+        toggleSound,
         activeTab,
         setActiveTab,
         lang,
@@ -1034,6 +1097,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addEmployee,
         updateEmployee,
         deleteEmployee,
+        restoreEmployee,
         getRecordForEmployeeAndDate,
         updateAttendanceStatus,
         updateAdminEvaluation,

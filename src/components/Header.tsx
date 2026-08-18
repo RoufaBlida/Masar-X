@@ -15,7 +15,9 @@ import {
   Plus,
   LogOut,
   Database,
-  Cloud
+  Cloud,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
 import { BrandLogo } from './BrandLogo';
@@ -42,7 +44,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
     settings,
     isCloudConnected,
     isCloudSyncing,
-    setIsVercelSyncModalOpen
+    setIsVercelSyncModalOpen,
+    toggleSound
   } = useApp();
 
   const isSuperAdmin = authUser?.adminRole === 'super_admin';
@@ -103,6 +106,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
 
         {/* Zone 3: Primary Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Sound Notifications Toggle */}
+          <button
+            onClick={toggleSound}
+            className={`flex items-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+              settings.soundEnabled !== false
+                ? 'text-[#FB923C] bg-[#E06D28]/10 border-[#E06D28]/30 hover:bg-[#E06D28]/20'
+                : 'text-[#6B7280] bg-[#1F2127] border-[#2D3039] hover:text-[#9CA3AF]'
+            }`}
+            title={lang === 'ar' ? (settings.soundEnabled !== false ? 'كتم صوت الإشعارات' : 'تفعيل صوت الإشعارات') : (settings.soundEnabled !== false ? 'Mute sounds' : 'Enable sounds')}
+          >
+            {settings.soundEnabled !== false ? (
+              <Volume2 className="w-3.5 h-3.5 stroke-[1.75]" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 stroke-[1.75]" />
+            )}
+          </button>
+
           {/* Language Switcher */}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}

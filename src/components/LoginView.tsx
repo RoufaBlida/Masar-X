@@ -218,6 +218,7 @@ export const LoginView: React.FC = () => {
                       <Lock className="w-4 h-4 text-[#9CA3AF] absolute top-1/2 -translate-y-1/2 start-3" />
                       <input
                         type="password"
+                        required
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         placeholder="••••••••"

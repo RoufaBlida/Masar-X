@@ -52,6 +52,12 @@ export interface Employee {
   createdAt: string;
   upgradedAt?: string;
   terminatedAt?: string;
+  // Archive & Termination Record Details
+  terminationReason?: string; // e.g. 'عدم اجتياز أسبوع التجربة', 'انتهاء العقد', 'استقالة', 'أسباب إدارية'
+  terminationNotes?: string; // ملاحظات الإدارة عند إنهاء العمل
+  terminationDate?: string; // تاريخ إنهاء الخدمة
+  terminatedBy?: string; // المسؤول المنفذ للقرار
+  finalPayout?: number; // المستحق النهائي المسدد
   portfolioUrl?: string;
   softwareTools?: string[];
   // Payment and Payslip details
@@ -155,6 +161,7 @@ export interface AppSettings {
   companyName: string; // 'مسار'
   senderCountry: string; // 'المملكة العربية السعودية'
   companyAddress?: string;
+  soundEnabled?: boolean; // Audio chime notifications
 }
 
 export interface AuthUser {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Award, DollarSign, Mail, Sparkles, AlertTriangle, Send } from 'lucide-react';
+import { X, Award, DollarSign, Mail, Sparkles, AlertTriangle, Send, FileText, CheckCircle2 } from 'lucide-react';
 import { calculateAccruedSalary } from '../utils/calculations';
 
 export const DecisionActionModal: React.FC = () => {
@@ -21,17 +21,27 @@ export const DecisionActionModal: React.FC = () => {
 
   const [decisionType, setDecisionType] = useState<'upgrade' | 'terminate'>('upgrade');
   const [newSalary, setNewSalary] = useState(emp ? emp.baseSalary : 250);
+  const [terminationReason, setTerminationReason] = useState('عدم اجتياز معايير الأسبوع التجريبي');
   const [customMessage, setCustomMessage] = useState('');
 
   if (!emp) return null;
 
   const stats = calculateAccruedSalary(emp, attendanceRecords, currentDate, settings);
 
+  const terminationReasonsList = [
+    { id: 'عدم اجتياز معايير الأسبوع التجريبي', label: isAr ? 'عدم اجتياز معايير الأسبوع التجريبي' : 'Did not meet trial criteria' },
+    { id: 'تأخير متكرر في تسليم المهام', label: isAr ? 'تأخير متكرر في تسليم المهام' : 'Frequent task delivery delays' },
+    { id: 'جودة العمل لا تطابق المتطلبات', label: isAr ? 'جودة العمل لا تطابق المتطلبات' : 'Work quality below standard' },
+    { id: 'انتهاء مدة العقد المحددة', label: isAr ? 'انتهاء مدة العقد المحددة' : 'Contract term ended' },
+    { id: 'طلب استقالة من الموظف', label: isAr ? 'طلب استقالة من طرف الموظف' : 'Resignation requested by employee' },
+    { id: 'أسباب إدارية وتنظيمية أخرى', label: isAr ? 'أسباب إدارية وتنظيمية أخرى' : 'Other administrative reasons' },
+  ];
+
   const handleConfirm = () => {
     if (decisionType === 'upgrade') {
       promoteToThreeMonths(emp.id, Number(newSalary) || emp.baseSalary, customMessage);
     } else {
-      endEmployeeTrial(emp.id, customMessage);
+      endEmployeeTrial(emp.id, terminationReason, customMessage);
     }
     setDecisionModalEmployee(null);
   };
@@ -87,7 +97,7 @@ export const DecisionActionModal: React.FC = () => {
             >
               <AlertTriangle className="w-5 h-5 text-[#FB7185] mx-auto mb-1.5 stroke-[1.75]" />
               <span className="font-bold text-xs block">{t.endTrial}</span>
-              <span className="text-[10px] text-[#9CA3AF] block mt-0.5">{isAr ? 'إنهاء التجربة ودياً' : 'Conclude Trial'}</span>
+              <span className="text-[10px] text-[#9CA3AF] block mt-0.5">{isAr ? 'إنهاء وحفظ في الأرشيف' : 'Conclude & Archive'}</span>
             </button>
           </div>
 
@@ -114,10 +124,36 @@ export const DecisionActionModal: React.FC = () => {
             </div>
           )}
 
-          {/* Custom Message */}
+          {/* Reason for Termination / Archive */}
+          {decisionType === 'terminate' && (
+            <div className="space-y-3 p-3.5 bg-[#17181D] rounded-xl border border-[#2D3039]">
+              <div>
+                <label className="block text-xs font-bold text-[#F3F4F6] mb-1.5">
+                  {isAr ? 'سبب إنهاء العمل (يوثق في سجل الموظف)' : 'Termination / Exit Reason'}
+                </label>
+                <select
+                  value={terminationReason}
+                  onChange={(e) => setTerminationReason(e.target.value)}
+                  className="w-full bg-[#1F2127] border border-[#2D3039] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#FB7185]"
+                >
+                  {terminationReasonsList.map(r => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Final Settlement summary */}
+              <div className="p-3 bg-[#1F2127] rounded-xl border border-[#2D3039] flex items-center justify-between text-xs">
+                <span className="text-[#9CA3AF]">{isAr ? 'المستحق النهائي المسجل:' : 'Final Settlement:'}</span>
+                <span className="font-bold text-[#FB923C]">${stats.accruedAmount.toFixed(2)} USD</span>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Message / Notes */}
           <div>
             <label className="block text-xs font-bold text-[#F3F4F6] mb-1">
-              {isAr ? 'ملاحظة خاصة أو توجيه للموظف بالإيميل' : 'Custom Note in Email Notification'}
+              {isAr ? 'ملاحظة خاصة وتفاصيل إضافية للسجل' : 'Notes & Details for Log Record'}
             </label>
             <textarea
               rows={3}
@@ -125,8 +161,8 @@ export const DecisionActionModal: React.FC = () => {
               onChange={(e) => setCustomMessage(e.target.value)}
               placeholder={
                 decisionType === 'upgrade'
-                  ? (isAr ? 'مثال: أداء ممتاز يا بطل! يسعدنا استمرارك معنا للـ 3 أشهر القادمة...' : 'e.g. Outstanding work! Excited to have you for the next 3 months...')
-                  : (isAr ? 'مثال: شكراً على مجهودك وتفانيك، تم تحويل مستحقاتك...' : 'Thank you for your effort during trial...')
+                  ? (isAr ? 'مثال: أداء متميز والتزام تام بالمواعيد والجودة...' : 'e.g. Outstanding work and great commitment...')
+                  : (isAr ? 'مثال: تم إبلاغ الموظف وتسوية مستحقات الأيام المنجزة...' : 'e.g. Final payout processed and notes recorded...')
               }
               className="w-full bg-[#17181D] border border-[#2D3039] rounded-xl p-3 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] resize-none"
             />
@@ -137,8 +173,8 @@ export const DecisionActionModal: React.FC = () => {
             <Mail className="w-4 h-4 text-[#E06D28] shrink-0 stroke-[1.75]" />
             <span>
               {isAr
-                ? `سيتم إرسال هذا القرار مباشرة إلى ${emp.email} وتوثيقه في السجل.`
-                : `Official email will be dispatched to ${emp.email}.`}
+                ? `سيتم حفظ هذا القرار وتوثيقه في السجل الدائم وإشعار ${emp.email}.`
+                : `Official record updated and notification logged for ${emp.email}.`}
             </span>
           </div>
         </div>
@@ -159,7 +195,7 @@ export const DecisionActionModal: React.FC = () => {
             className={`py-2 px-5 rounded-xl text-xs font-bold text-white shadow-sm flex items-center gap-1.5 cursor-pointer ${
               decisionType === 'upgrade'
                 ? 'bg-[#E06D28] hover:bg-[#F07935] shadow-[#E06D28]/25'
-                : 'bg-gradient-to-r from-[#FB7185] to-[#F43F5E] text-white hover:opacity-90'
+                : 'bg-[#F43F5E] hover:bg-[#E11D48]'
             }`}
           >
             <Send className="w-3.5 h-3.5 stroke-[2]" />

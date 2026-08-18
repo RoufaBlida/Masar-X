@@ -2,6 +2,7 @@ import { Employee, AttendanceRecord, DecisionNotification, AppSettings } from '.
 
 export const initialSettings: AppSettings = {
   adminEmail: 'Roufablida90@gmail.com',
+  adminPassword: 'Masar@Admin2026',
   authorizedAdmins: [],
   defaultWeekendDays: [5, 6], // Friday (5) & Saturday (6)
   defaultSalary: 250,
@@ -11,8 +12,9 @@ export const initialSettings: AppSettings = {
   weeklySummaryTime: '20:00',
   currency: '$',
   companyName: 'منظومة مسار',
-  senderCountry: '',
-  companyAddress: ''
+  senderCountry: 'المملكة العربية السعودية',
+  companyAddress: '',
+  soundEnabled: true
 };
 
 // Clean default data - No mock records

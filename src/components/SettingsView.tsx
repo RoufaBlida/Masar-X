@@ -28,8 +28,12 @@ import {
   FileSpreadsheet,
   Users,
   Award,
-  CalendarCheck2
+  CalendarCheck2,
+  Volume2,
+  VolumeX,
+  BellRing
 } from 'lucide-react';
+import { soundEffects } from '../utils/soundEffects';
 import { 
   DeductionType, 
   AdminAccount, 
@@ -49,6 +53,7 @@ export const SettingsView: React.FC = () => {
     updateAuthorizedAdminPermissions,
     removeAuthorizedAdmin,
     updateMasterAdminPassword,
+    toggleSound,
     lang, 
     t,
     isCloudConnected,
@@ -737,6 +742,62 @@ export const SettingsView: React.FC = () => {
                 className="w-full bg-[#17181D] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-2 px-3 text-xs text-[#FFFFFF] focus:outline-none transition-colors"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section: Audio Notifications System */}
+        <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#E06D28]/15 text-[#E06D28] flex items-center justify-center shrink-0">
+              <Volume2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <span>{isAr ? 'نظام النغمات والأصوات التفاعلية للإشعارات' : 'Audio Notification System'}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  settings.soundEnabled !== false ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                }`}>
+                  {settings.soundEnabled !== false ? (isAr ? 'مفعل 🔔' : 'Enabled') : (isAr ? 'صامت 🔕' : 'Muted')}
+                </span>
+              </h3>
+              <p className="text-[11px] text-[#9CA3AF] mt-0.5 leading-relaxed">
+                {isAr
+                  ? 'تشغيل رنات تنبيهية فورية عند استلام التقارير اليومية، إرسال الإشعارات، وتسجيل الحضور والغياب.'
+                  : 'Plays audio chimes upon receiving daily reports, sending notifications, and logging attendance.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => soundEffects.playSuccess()}
+              className="py-1.5 px-3 rounded-xl text-xs font-semibold text-[#D1D5DB] bg-[#17181D] hover:bg-[#262831] border border-[#2D3039] transition-colors cursor-pointer"
+            >
+              {isAr ? 'تجربة الصوت 🎵' : 'Test Chime'}
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleSound}
+              className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                settings.soundEnabled !== false
+                  ? 'bg-[#E06D28] text-white shadow-sm shadow-[#E06D28]/25'
+                  : 'bg-[#262831] text-[#9CA3AF] hover:text-white border border-[#3F4350]'
+              }`}
+            >
+              {settings.soundEnabled !== false ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>{isAr ? 'الصوت مفعّل' : 'Sound On'}</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="w-3.5 h-3.5" />
+                  <span>{isAr ? 'تفعيل الصوت' : 'Turn On'}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
