@@ -112,6 +112,15 @@ export interface AppSettings {
   companyAddress?: string;
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email?: string;
+  role: 'admin' | 'employee';
+  employeeId?: string;
+  avatar?: string;
+}
+
 export type ActiveTab = 
   | 'dashboard'
   | 'daily_log'

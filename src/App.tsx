@@ -14,12 +14,14 @@ import { EmployeeDetailModal } from './components/EmployeeDetailModal';
 import { DecisionActionModal } from './components/DecisionActionModal';
 import { WeeklySummaryModal } from './components/WeeklySummaryModal';
 import { VercelSyncModal } from './components/VercelSyncModal';
+import { LoginView } from './components/LoginView';
 import { Employee } from './types';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { formatDate } from './utils/calculations';
 
 const MainContent: React.FC = () => {
   const { 
+    authUser,
     activeTab, 
     isEmployeePortal, 
     toastMessage, 
@@ -33,6 +35,11 @@ const MainContent: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isWeeklySummaryOpen, setIsWeeklySummaryOpen] = useState(false);
+
+  // If user is not authenticated, show modern login view
+  if (!authUser) {
+    return <LoginView />;
+  }
 
   return (
     <div className="min-h-screen bg-[#141518] bg-ambient-warm text-[#F3F4F6] flex flex-col selection:bg-[#E06D28]/30 selection:text-[#FFFFFF]">

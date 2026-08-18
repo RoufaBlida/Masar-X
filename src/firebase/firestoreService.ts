@@ -77,6 +77,30 @@ export async function saveSettingsToCloud(settings: AppSettings): Promise<void> 
 }
 
 /**
+ * Purge and delete all remote documents from employees and attendance_records
+ */
+export async function clearAllCloudData(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const batch = writeBatch(db);
+    const employeesSnap = await getDocs(collection(db, EMPLOYEES_COLLECTION));
+    employeesSnap.forEach(d => {
+      batch.delete(d.ref);
+    });
+
+    const attendanceSnap = await getDocs(collection(db, ATTENDANCE_COLLECTION));
+    attendanceSnap.forEach(d => {
+      batch.delete(d.ref);
+    });
+
+    await batch.commit();
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing cloud data:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Delete failed' };
+  }
+}
+
+/**
  * Perform a full bidirectional sync or push of local state to Firestore
  */
 export async function syncAllToCloud(
@@ -94,6 +118,24 @@ export async function syncAllToCloud(
       id: 'main_settings',
       updatedAt: new Date().toISOString()
     }, { merge: true });
+
+    // Clear remote deleted employees
+    const employeesSnap = await getDocs(collection(db, EMPLOYEES_COLLECTION));
+    const currentEmpIds = new Set(employees.map(e => e.id));
+    employeesSnap.forEach(d => {
+      if (!currentEmpIds.has(d.id)) {
+        batch.delete(d.ref);
+      }
+    });
+
+    // Clear remote deleted attendance records
+    const attendanceSnap = await getDocs(collection(db, ATTENDANCE_COLLECTION));
+    const currentRecIds = new Set(attendanceRecords.map(r => r.id));
+    attendanceSnap.forEach(d => {
+      if (!currentRecIds.has(d.id)) {
+        batch.delete(d.ref);
+      }
+    });
 
     // Sync employees
     for (const emp of employees) {
@@ -170,7 +212,7 @@ export function subscribeToCloudUpdates(callbacks: {
   onSettingsChange?: (settings: AppSettings) => void;
 }) {
   const unsubEmployees = onSnapshot(collection(db, EMPLOYEES_COLLECTION), (snap) => {
-    if (callbacks.onEmployeesChange && !snap.empty) {
+    if (callbacks.onEmployeesChange) {
       const emps: Employee[] = [];
       snap.forEach(d => emps.push(d.data() as Employee));
       callbacks.onEmployeesChange(emps);
@@ -180,7 +222,7 @@ export function subscribeToCloudUpdates(callbacks: {
   });
 
   const unsubAttendance = onSnapshot(collection(db, ATTENDANCE_COLLECTION), (snap) => {
-    if (callbacks.onAttendanceChange && !snap.empty) {
+    if (callbacks.onAttendanceChange) {
       const recs: AttendanceRecord[] = [];
       snap.forEach(d => recs.push(d.data() as AttendanceRecord));
       callbacks.onAttendanceChange(recs);

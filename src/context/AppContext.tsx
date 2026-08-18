@@ -8,7 +8,8 @@ import {
   ActiveTab, 
   AttendanceStatus, 
   DeliverySpeed, 
-  ContractType 
+  ContractType,
+  AuthUser
 } from '../types';
 import { 
   initialEmployees, 
@@ -21,6 +22,10 @@ import { calculateDailyRate, isWeekend } from '../utils/calculations';
 import { 
   testFirestoreConnection, 
   db, 
+  auth,
+  googleProvider,
+  signInWithPopup,
+  signOut,
   firebaseConfig 
 } from '../firebase/config';
 import { 
@@ -29,10 +34,19 @@ import {
   saveAttendanceRecordToCloud, 
   saveSettingsToCloud, 
   syncAllToCloud, 
-  fetchAllFromCloud 
+  fetchAllFromCloud,
+  clearAllCloudData 
 } from '../firebase/firestoreService';
 
 interface AppContextType {
+  // Authentication & Session
+  authUser: AuthUser | null;
+  loginAsAdmin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  loginAsEmployee: (accessCode: string) => Promise<{ success: boolean; error?: string; employee?: Employee }>;
+  logout: () => void;
+  clearAllLocalData: () => void;
+
   // Navigation & Mode
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
@@ -107,16 +121,60 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PREFIX = 'masar_app_v2_';
+const LOCAL_STORAGE_KEY_PREFIX = 'masar_app_v4_';
+
+// One-time legacy mock cleanup helper
+const purgeLegacyLocalStorage = () => {
+  try {
+    const keysToRemove = [
+      'masar_app_v1_employees',
+      'masar_app_v1_attendance',
+      'masar_app_v1_notifications',
+      'masar_app_v2_employees',
+      'masar_app_v2_attendance',
+      'masar_app_v2_notifications',
+      'masar_app_v3_employees',
+      'masar_app_v3_attendance',
+      'masar_app_v3_notifications'
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {
+    // ignore
+  }
+};
+purgeLegacyLocalStorage();
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [lang, setLang] = useState<Language>(() => {
     return (localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'lang') as Language) || 'ar';
   });
 
+  const isAr = lang === 'ar';
+
+  // Auth User State
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'auth_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-  const [isEmployeePortal, setIsEmployeePortal] = useState<boolean>(false);
-  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>('emp-1');
+  const [isEmployeePortal, setIsEmployeePortal] = useState<boolean>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'auth_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.role === 'employee';
+    }
+    return false;
+  });
+
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'auth_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.employeeId || null;
+    }
+    return null;
+  });
   
   const todayStr = new Date().toISOString().split('T')[0];
   const [currentDate, setCurrentDate] = useState<string>(todayStr);
@@ -137,23 +195,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return saved ? JSON.parse(saved) : initialSettings;
   });
 
-  // Employees
+  // Employees - Clean starting state
   const [employees, setEmployees] = useState<Employee[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'employees');
-    return saved ? JSON.parse(saved) : initialEmployees;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Filter out legacy mock data if present
+        return parsed.filter((e: Employee) => !['emp-1', 'emp-2', 'emp-3', 'emp-4', 'emp-5'].includes(e.id));
+      } catch {
+        return [];
+      }
+    }
+    return initialEmployees;
   });
 
-  // Attendance Records
+  // Attendance Records - Clean starting state
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'attendance');
-    return saved ? JSON.parse(saved) : initialAttendanceRecords;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.filter((r: AttendanceRecord) => !['att-1-today', 'att-1-d1', 'att-1-d2', 'att-2-today', 'att-2-d1', 'att-3-today', 'att-3-d1', 'att-4-today', 'att-5-today'].includes(r.id));
+      } catch {
+        return [];
+      }
+    }
+    return initialAttendanceRecords;
   });
 
-  // Notifications
+  // Notifications - Clean starting state
   const [notifications, setNotifications] = useState<DecisionNotification[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'notifications');
     return saved ? JSON.parse(saved) : initialNotifications;
   });
+
+  // Sync authUser to localStorage
+  useEffect(() => {
+    if (authUser) {
+      localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'auth_user', JSON.stringify(authUser));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'auth_user');
+    }
+  }, [authUser]);
 
   // Test connection and attempt initial cloud hydrate on startup
   useEffect(() => {
@@ -169,15 +253,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (isOnline) {
           const cloudData = await fetchAllFromCloud();
           if (isMounted && cloudData) {
-            if (cloudData.employees.length > 0) {
+            // Check if remote data only contains old mock employees
+            const hasLegacyMock = cloudData.employees.some(e => ['emp-1', 'emp-2', 'emp-3', 'emp-4', 'emp-5'].includes(e.id));
+            if (hasLegacyMock) {
+              await clearAllCloudData();
+              setEmployees([]);
+              setAttendanceRecords([]);
+            } else if (cloudData.employees.length > 0) {
               setEmployees(cloudData.employees);
-            } else {
-              // Seed initial data to cloud if remote is empty
-              syncAllToCloud(employees, attendanceRecords, settings);
-            }
-
-            if (cloudData.attendanceRecords.length > 0) {
-              setAttendanceRecords(cloudData.attendanceRecords);
+              if (cloudData.attendanceRecords.length > 0) {
+                setAttendanceRecords(cloudData.attendanceRecords);
+              }
             }
 
             if (cloudData.settings) {
@@ -222,6 +308,115 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsCloudSyncing(false);
       return false;
     }
+  };
+
+  // Authentication methods
+  const loginAsAdmin = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = (email || settings.adminEmail || 'roufablida360@gmail.com').trim();
+      const userObj: AuthUser = {
+        id: `admin-${Date.now()}`,
+        name: isAr ? 'المشرف العام' : 'Administrator',
+        email: cleanEmail,
+        role: 'admin'
+      };
+      setAuthUser(userObj);
+      setIsEmployeePortal(false);
+      showToast(isAr ? `مرحباً بك، تم تسجيل الدخول كـ ${userObj.name}` : `Welcome back, ${userObj.name}!`, 'success');
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
+    }
+  };
+
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const userObj: AuthUser = {
+        id: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || (isAr ? 'مدير النظام' : 'Admin'),
+        email: user.email || '',
+        role: 'admin',
+        avatar: user.photoURL || undefined
+      };
+      setAuthUser(userObj);
+      setIsEmployeePortal(false);
+      showToast(isAr ? `تم تسجيل الدخول بنجاح بحساب Google: ${userObj.email}` : `Signed in with Google as ${userObj.email}`, 'success');
+      return { success: true };
+    } catch (err) {
+      console.warn('Google Sign In:', err);
+      return { 
+        success: false, 
+        error: isAr 
+          ? 'تعذر إتمام تسجيل الدخول عبر Google. يمكنك استخدام الدخول المباشر بالبريد.' 
+          : 'Google sign-in was canceled or failed. You can use direct email sign in.' 
+      };
+    }
+  };
+
+  const loginAsEmployee = async (accessCode: string): Promise<{ success: boolean; error?: string; employee?: Employee }> => {
+    const code = accessCode.trim().toUpperCase();
+    if (!code) {
+      return { success: false, error: isAr ? 'يرجى إدخال كود الموظف' : 'Please enter employee access code' };
+    }
+
+    // Try finding employee in current state or fallback cloud list
+    let targetEmp = employees.find(e => e.accessCode.trim().toUpperCase() === code);
+
+    // If not found in state, try fetch latest cloud data
+    if (!targetEmp) {
+      try {
+        const cloudData = await fetchAllFromCloud();
+        targetEmp = cloudData.employees.find(e => e.accessCode.trim().toUpperCase() === code);
+        if (targetEmp) {
+          setEmployees(cloudData.employees);
+        }
+      } catch (e) {
+        console.warn('Employee code check fallback error:', e);
+      }
+    }
+
+    if (targetEmp) {
+      const userObj: AuthUser = {
+        id: targetEmp.id,
+        name: targetEmp.name,
+        email: targetEmp.email,
+        role: 'employee',
+        employeeId: targetEmp.id
+      };
+      setAuthUser(userObj);
+      setCurrentEmployeeId(targetEmp.id);
+      setIsEmployeePortal(true);
+      showToast(isAr ? `مرحباً بك يا ${targetEmp.name} في بوابة إنجازك اليومي` : `Welcome ${targetEmp.name}!`, 'success');
+      return { success: true, employee: targetEmp };
+    } else {
+      return { 
+        success: false, 
+        error: isAr 
+          ? 'كود الموظف غير صحيح أو غير مسجل في النظام. تواصل مع الإدارة للحصول على كودك.' 
+          : 'Invalid access code. Please check with administrator.' 
+      };
+    }
+  };
+
+  const logout = () => {
+    signOut(auth).catch(() => {});
+    setAuthUser(null);
+    setIsEmployeePortal(false);
+    showToast(isAr ? 'تم تسجيل الخروج بنجاح' : 'Logged out successfully', 'info');
+  };
+
+  // Clear all mock data completely from everywhere
+  const clearAllLocalData = async () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'employees');
+    localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'attendance');
+    localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'notifications');
+    setEmployees([]);
+    setAttendanceRecords([]);
+    setNotifications([]);
+    await clearAllCloudData();
+    showToast(isAr ? 'تم حذف جميع البيانات الافتراضية وقاعدة البيانات بنجاح' : 'All default data deleted successfully', 'info');
   };
 
   // Sync to LocalStorage
@@ -621,6 +816,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider
       value={{
+        authUser,
+        loginAsAdmin,
+        loginWithGoogle,
+        loginAsEmployee,
+        logout,
+        clearAllLocalData,
         activeTab,
         setActiveTab,
         lang,

@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -9,7 +9,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 // Export Firestore with specific database ID (Required by Firebase skill)
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-export { firebaseConfig };
+export const googleProvider = new GoogleAuthProvider();
+export { firebaseConfig, signInWithPopup, signOut };
 
 // Test connection on boot as specified in SKILL.md
 export async function testFirestoreConnection(): Promise<boolean> {

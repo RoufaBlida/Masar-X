@@ -12,11 +12,13 @@ import {
   ShieldCheck, 
   Globe2, 
   FileSpreadsheet, 
-  Plus
+  Plus,
+  LogOut,
+  Database,
+  Cloud
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
 import { BrandLogo } from './BrandLogo';
-import { Database, Cloud } from 'lucide-react';
 
 interface HeaderProps {
   onOpenAddModal: () => void;
@@ -25,6 +27,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
   const { 
+    authUser,
+    logout,
     activeTab, 
     setActiveTab, 
     lang, 
@@ -54,6 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
     exportToCSV(employees, attendanceRecords, currentDate, settings, lang);
   };
 
+  const isAdmin = authUser?.role === 'admin';
+
   return (
     <header className="sticky top-0 z-40 w-full bg-[#17181D]/95 backdrop-blur-md border-b border-[#2D3039] px-4 sm:px-6 py-3 no-print shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -62,8 +68,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           <BrandLogo size="md" showText={true} lang={lang} />
         </div>
 
-        {/* Zone 2: Navigation Links (Single functional row) */}
-        {!isEmployeePortal && (
+        {/* Zone 2: Navigation Links (Single functional row) - Visible for Admins */}
+        {isAdmin && !isEmployeePortal && (
           <nav className="hidden md:flex items-center gap-1 bg-[#1F2127] p-1 rounded-xl border border-[#2D3039]">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -98,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           </button>
 
           {/* Cloud Database & Vercel Sync Trigger */}
-          {!isEmployeePortal && (
+          {isAdmin && !isEmployeePortal && (
             <button
               onClick={() => setIsVercelSyncModalOpen(true)}
               className="flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-[#1F2127] hover:bg-[#262831] border border-[#2D3039] hover:border-[#E06D28]/40 whitespace-nowrap shrink-0 transition-colors cursor-pointer"
@@ -111,39 +117,43 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           )}
 
           {/* Quick Excel Export */}
-          <button
-            onClick={handleExportCSV}
-            className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium text-[#E06D28] bg-[#1F2127] hover:bg-[#262831] border border-[#2D3039] whitespace-nowrap shrink-0 transition-colors cursor-pointer"
-            title={t.exportExcel}
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 stroke-[1.75]" />
-            <span>{lang === 'ar' ? 'تصدير Excel' : 'Excel'}</span>
-          </button>
+          {isAdmin && !isEmployeePortal && (
+            <button
+              onClick={handleExportCSV}
+              className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium text-[#E06D28] bg-[#1F2127] hover:bg-[#262831] border border-[#2D3039] whitespace-nowrap shrink-0 transition-colors cursor-pointer"
+              title={t.exportExcel}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 stroke-[1.75]" />
+              <span>{lang === 'ar' ? 'تصدير Excel' : 'Excel'}</span>
+            </button>
+          )}
 
-          {/* Employee Portal / Admin Toggle */}
-          <button
-            onClick={() => setIsEmployeePortal(!isEmployeePortal)}
-            className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-all border cursor-pointer ${
-              isEmployeePortal
-                ? 'bg-[#E06D28] text-white border-[#E06D28] shadow-sm shadow-[#E06D28]/30 font-bold'
-                : 'bg-[#1F2127] text-[#E2E8F0] border-[#2D3039] hover:border-[#3F4350]'
-            }`}
-          >
-            {isEmployeePortal ? (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 stroke-[1.75]" />
-                <span>{lang === 'ar' ? 'عودة للإدارة' : 'Admin View'}</span>
-              </>
-            ) : (
-              <>
-                <UserCircle2 className="w-3.5 h-3.5 text-[#E06D28] stroke-[1.75]" />
-                <span>{lang === 'ar' ? 'بوابة الموظف' : 'Portal'}</span>
-              </>
-            )}
-          </button>
+          {/* Employee Portal / Admin Toggle (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={() => setIsEmployeePortal(!isEmployeePortal)}
+              className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-all border cursor-pointer ${
+                isEmployeePortal
+                  ? 'bg-[#E06D28] text-white border-[#E06D28] shadow-sm shadow-[#E06D28]/30 font-bold'
+                  : 'bg-[#1F2127] text-[#E2E8F0] border-[#2D3039] hover:border-[#3F4350]'
+              }`}
+            >
+              {isEmployeePortal ? (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 stroke-[1.75]" />
+                  <span>{lang === 'ar' ? 'لوحة الإدارة' : 'Admin View'}</span>
+                </>
+              ) : (
+                <>
+                  <UserCircle2 className="w-3.5 h-3.5 text-[#E06D28] stroke-[1.75]" />
+                  <span>{lang === 'ar' ? 'معاينة البوابة' : 'Portal View'}</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* Add Employee CTA */}
-          {!isEmployeePortal && (
+          {isAdmin && !isEmployeePortal && (
             <button
               onClick={onOpenAddModal}
               className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/30 whitespace-nowrap shrink-0 transition-all cursor-pointer"
@@ -152,11 +162,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
               <span>{t.addEmployee}</span>
             </button>
           )}
+
+          {/* User Profile / Logout Button */}
+          {authUser && (
+            <div className="flex items-center gap-1.5 ps-1 border-s border-[#2D3039]">
+              <div className="hidden sm:flex flex-col text-end">
+                <span className="text-[11px] font-bold text-white leading-tight truncate max-w-[110px]">
+                  {authUser.name}
+                </span>
+                <span className="text-[9px] text-[#9CA3AF] leading-tight">
+                  {authUser.role === 'admin' ? (lang === 'ar' ? 'مشرف النظام' : 'Admin') : (lang === 'ar' ? 'موظف' : 'Employee')}
+                </span>
+              </div>
+
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#FB7185] hover:bg-[#262831] border border-transparent hover:border-[#FB7185]/30 transition-all cursor-pointer"
+                title={lang === 'ar' ? 'تسجيل الخروج' : 'Log Out'}
+              >
+                <LogOut className="w-4 h-4 stroke-[1.75]" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Mobile sub-nav */}
-      {!isEmployeePortal && (
+      {/* Mobile sub-nav for Admins */}
+      {isAdmin && !isEmployeePortal && (
         <div className="md:hidden flex items-center gap-1 mt-2.5 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-none">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;

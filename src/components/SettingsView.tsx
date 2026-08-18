@@ -23,6 +23,7 @@ export const SettingsView: React.FC = () => {
     settings, 
     updateSettings, 
     resetToDefaultData, 
+    clearAllLocalData,
     lang, 
     t,
     isCloudConnected,
@@ -308,25 +309,25 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Section 5: Data Management */}
-        <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-5 sm:p-6 shadow-sm flex items-center justify-between">
+        <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xs font-bold text-[#FFFFFF]">{isAr ? 'إعادة ضبط البيانات التجريبية' : 'Reset Demo Data'}</h3>
+            <h3 className="text-xs font-bold text-[#FFFFFF]">{isAr ? 'حذف وتهيئة جميع البيانات' : 'Purge All Database Records'}</h3>
             <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-              {isAr ? 'استعادة أعضاء الفريق وسجلات الحضور الافتراضية.' : 'Restores initial creative team and attendance records.'}
+              {isAr ? 'حذف جميع الموظفين وسجلات الحضور والتقييمات للبدء بقاعدة بيانات نظيفة 100%.' : 'Permanently remove all employees and attendance logs for a 100% clean database.'}
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => {
-              if (confirm(isAr ? 'هل تريد استعادة البيانات الافتراضية الأولية؟' : 'Restore initial sample data?')) {
-                resetToDefaultData();
+              if (confirm(isAr ? 'هل أنت متأكد من رغبتك في حذف جميع الموظفين وسجلات الحضور والبدء من الصفر؟' : 'Are you sure you want to delete all data and start completely fresh?')) {
+                clearAllLocalData();
               }
             }}
-            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-[#9CA3AF] hover:text-[#FFFFFF] bg-[#17181D] border border-[#2D3039] hover:bg-[#262831] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 stroke-[1.75]" />
-            <span>{isAr ? 'استعادة البيانات' : 'Reset Data'}</span>
+            <span>{isAr ? 'حذف جميع البيانات وتصفير النظام' : 'Purge All Records'}</span>
           </button>
         </div>
 

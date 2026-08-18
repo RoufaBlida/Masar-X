@@ -133,8 +133,33 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
       </div>
 
       {/* Grid of Team Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredEmployees.map(emp => {
+      {filteredEmployees.length === 0 ? (
+        <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-12 text-center max-w-lg mx-auto space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-[#E06D28]/15 text-[#E06D28] border border-[#E06D28]/30 flex items-center justify-center mx-auto">
+            <Users className="w-6 h-6 stroke-[1.75]" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">
+              {isAr ? 'لا يوجد أعضاء في الفريق حالياً' : 'No Team Members Found'}
+            </h3>
+            <p className="text-xs text-[#9CA3AF] mt-1">
+              {isAr
+                ? 'ابدأ بإضافة أول موظف مبدع لفريقك لتتبع فترة أسبوع التجربة وسجلات الحضور والتقييمات اليومية.'
+                : 'Get started by adding your first team member to track trials, daily logs, and payouts.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenAddModal}
+            className="py-2.5 px-5 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/30 inline-flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4 stroke-[2]" />
+            <span>{isAr ? 'إضافة موظف جديد' : 'Add First Employee'}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredEmployees.map(emp => {
           const stats = calculateAccruedSalary(emp, attendanceRecords, currentDate, settings);
           const trialProg = getTrialProgress(emp, currentDate);
           const isTrial = emp.contractType === '1_week_trial';
@@ -276,7 +301,8 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Payslip Modal */}
       <PayslipModal
