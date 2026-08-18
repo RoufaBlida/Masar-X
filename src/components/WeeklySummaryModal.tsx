@@ -87,7 +87,7 @@ export const WeeklySummaryModal: React.FC<WeeklySummaryModalProps> = ({ isOpen, 
           <div className="p-3.5 bg-[#17181D] rounded-xl border border-[#2D3039] text-xs space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[#94A3B8]">{isAr ? 'البريد المستلم (الأدمن):' : 'Recipient Email:'}</span>
-              <span className="font-mono font-bold text-[#FB923C]">{settings.adminEmail}</span>
+              <span className="font-mono font-bold text-[#FB923C]">{settings.adminEmail || (isAr ? 'لم يتم تحديد بريد بعد' : 'Not configured')}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[#94A3B8]">{isAr ? 'موعد الإرسال التلقائي:' : 'Auto Schedule:'}</span>

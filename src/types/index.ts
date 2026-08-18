@@ -98,8 +98,53 @@ export interface DecisionNotification {
   };
 }
 
+export interface AdminPermissions {
+  canViewSalaries: boolean; // رؤية الرواتب والمبالغ المالية والخصومات
+  canEditSalaries: boolean; // تعديل رواتب الموظفين وقواعد الخصم
+  canViewAttendance: boolean; // عرض سجلات الحضور والغياب
+  canEditAttendance: boolean; // تسجيل الحضور والغياب وتقييم المهام
+  canManageTeam: boolean; // إضافة وتعديل وحذف أعضاء الفريق
+  canMakeTrialDecisions: boolean; // اتخاذ قرارات التثبيت 3 أشهر أو إنهاء التجربة
+  canAccessSettings: boolean; // الدخول لصفحة الإعدادات وإدارة المشرفين
+  canExportReports: boolean; // تصدير Excel والتقارير
+}
+
+export const DEFAULT_SUPERVISOR_PERMISSIONS: AdminPermissions = {
+  canViewSalaries: false,
+  canEditSalaries: false,
+  canViewAttendance: true,
+  canEditAttendance: true,
+  canManageTeam: false,
+  canMakeTrialDecisions: false,
+  canAccessSettings: false,
+  canExportReports: true
+};
+
+export const SUPER_ADMIN_PERMISSIONS: AdminPermissions = {
+  canViewSalaries: true,
+  canEditSalaries: true,
+  canViewAttendance: true,
+  canEditAttendance: true,
+  canManageTeam: true,
+  canMakeTrialDecisions: true,
+  canAccessSettings: true,
+  canExportReports: true
+};
+
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: 'super_admin' | 'supervisor';
+  permissions: AdminPermissions;
+  password?: string;
+  createdAt: string;
+}
+
 export interface AppSettings {
-  adminEmail: string; // e.g. Roufablida90@gmail.com
+  adminEmail: string; // Master admin email
+  adminPassword?: string; // Master admin password / secret code
+  authorizedAdmins?: AdminAccount[]; // List of authorized admins/supervisors added from inside settings
   defaultWeekendDays: number[]; // [5, 6] = Friday (5) & Saturday (6)
   defaultSalary: number; // 250
   defaultDeductionType: DeductionType;
@@ -117,6 +162,8 @@ export interface AuthUser {
   name: string;
   email?: string;
   role: 'admin' | 'employee';
+  adminRole?: 'super_admin' | 'supervisor';
+  permissions?: AdminPermissions;
   employeeId?: string;
   avatar?: string;
 }

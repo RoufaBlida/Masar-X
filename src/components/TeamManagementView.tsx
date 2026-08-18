@@ -31,6 +31,7 @@ interface TeamManagementViewProps {
 
 export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAddModal, onOpenEditModal }) => {
   const { 
+    authUser,
     employees, 
     attendanceRecords, 
     currentDate, 
@@ -42,6 +43,10 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
   } = useApp();
 
   const isAr = lang === 'ar';
+  const isSuperAdmin = authUser?.adminRole === 'super_admin';
+  const canManageTeam = isSuperAdmin || authUser?.permissions?.canManageTeam !== false;
+  const canViewSalaries = isSuperAdmin || authUser?.permissions?.canViewSalaries !== false;
+  const canMakeTrialDecisions = isSuperAdmin || authUser?.permissions?.canMakeTrialDecisions !== false;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -82,13 +87,15 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
           </div>
         </div>
 
-        <button
-          onClick={onOpenAddModal}
-          className="flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
-        >
-          <UserPlus className="w-4 h-4 stroke-[2]" />
-          <span>{t.addEmployee}</span>
-        </button>
+        {canManageTeam && (
+          <button
+            onClick={onOpenAddModal}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4 stroke-[2]" />
+            <span>{t.addEmployee}</span>
+          </button>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
@@ -148,14 +155,16 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                 : 'Get started by adding your first team member to track trials, daily logs, and payouts.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onOpenAddModal}
-            className="py-2.5 px-5 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/30 inline-flex items-center gap-2 transition-all cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4 stroke-[2]" />
-            <span>{isAr ? 'إضافة موظف جديد' : 'Add First Employee'}</span>
-          </button>
+          {canManageTeam && (
+            <button
+              type="button"
+              onClick={onOpenAddModal}
+              className="py-2.5 px-5 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/30 inline-flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4 stroke-[2]" />
+              <span>{isAr ? 'إضافة موظف جديد' : 'Add First Employee'}</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -180,25 +189,28 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                       {emp.avatarInitial || emp.name.slice(0, 2)}
                     </div>
                     <div>
-                      <h3
-                        onClick={() => setSelectedEmployeeForDetail(emp)}
-                        className="font-bold text-base text-[#FFFFFF] hover:text-[#E06D28] transition-colors cursor-pointer"
-                      >
-                        {emp.name}
-                      </h3>
-                      <p className="text-xs text-[#9CA3AF]">
-                        {t[`role_${emp.role}` as keyof typeof t]?.split('(')[0] || emp.role}
-                      </p>
+                      <h3 className="font-bold text-sm sm:text-base text-[#FFFFFF]">{emp.name}</h3>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-xs text-[#9CA3AF]">
+                          {t[`role_${emp.role}` as keyof typeof t]?.split('(')[0] || emp.role}
+                        </span>
+                        <span className="text-[#4B5563]">•</span>
+                        <span className="text-[11px] font-mono text-[#E06D28] bg-[#E06D28]/10 border border-[#E06D28]/25 px-1.5 py-0.2 rounded">
+                          {emp.accessCode}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => onOpenEditModal(emp)}
-                    className="p-1.5 text-[#9CA3AF] hover:text-[#E06D28] hover:bg-[#262831] rounded-lg transition-colors cursor-pointer"
-                    title={isAr ? 'تعديل البيانات' : 'Edit Member'}
-                  >
-                    <Edit3 className="w-4 h-4 stroke-[1.75]" />
-                  </button>
+                  {canManageTeam && (
+                    <button
+                      onClick={() => onOpenEditModal(emp)}
+                      className="p-1.5 text-[#6B7280] hover:text-[#FFFFFF] hover:bg-[#262831] rounded-lg transition-colors cursor-pointer"
+                      title={isAr ? 'تعديل البيانات' : 'Edit Member'}
+                    >
+                      <Edit3 className="w-4 h-4 stroke-[1.75]" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Contract Status / Progress */}
@@ -227,7 +239,9 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                         <Award className="w-4 h-4 stroke-[1.75]" />
                         <span>{isAr ? 'عقد 3 أشهر (مثبت)' : '3-Month Contract'}</span>
                       </span>
-                      <span className="text-[11px] font-mono text-[#9CA3AF]">${emp.baseSalary}/mo</span>
+                      {canViewSalaries && (
+                        <span className="text-[11px] font-mono text-[#9CA3AF]">${emp.baseSalary}/mo</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -250,9 +264,9 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                   </div>
 
                   <div className="p-2 rounded-xl bg-[#17181D] border border-[#2D3039]">
-                    <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'المستحق' : 'Accrued'}</span>
+                    <span className="text-[10px] text-[#9CA3AF] block">{canViewSalaries ? (isAr ? 'المستحق' : 'Accrued') : (isAr ? 'الغياب' : 'Absence')}</span>
                     <span className="text-xs font-bold text-[#FB923C] mt-0.5 block">
-                      ${stats.accruedAmount.toFixed(0)}
+                      {canViewSalaries ? `$${stats.accruedAmount.toFixed(0)}` : `${stats.totalAbsentDays}d`}
                     </span>
                   </div>
                 </div>
@@ -279,17 +293,19 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                     {isAr ? 'عرض الملف' : 'Profile'}
                   </button>
 
-                  <button
-                    onClick={() => setPayslipEmployee(emp)}
-                    className="py-1.5 px-2 rounded-lg text-xs font-medium text-[#FB923C] hover:bg-[#E06D28]/15 border border-[#E06D28]/30 transition-colors cursor-pointer flex items-center gap-1"
-                    title={isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip'}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{isAr ? 'قسيمة الراتب' : 'Payslip'}</span>
-                  </button>
+                  {canViewSalaries && (
+                    <button
+                      onClick={() => setPayslipEmployee(emp)}
+                      className="py-1.5 px-2 rounded-lg text-xs font-medium text-[#FB923C] hover:bg-[#E06D28]/15 border border-[#E06D28]/30 transition-colors cursor-pointer flex items-center gap-1"
+                      title={isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip'}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">{isAr ? 'قسيمة الراتب' : 'Payslip'}</span>
+                    </button>
+                  )}
                 </div>
 
-                {isTrial && (
+                {isTrial && canMakeTrialDecisions && (
                   <button
                     onClick={() => setDecisionModalEmployee(emp)}
                     className="py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm transition-colors cursor-pointer"
@@ -305,15 +321,17 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
       )}
 
       {/* Payslip Modal */}
-      <PayslipModal
-        employee={payslipEmployee}
-        records={attendanceRecords}
-        settings={settings}
-        currentDate={currentDate}
-        isOpen={Boolean(payslipEmployee)}
-        onClose={() => setPayslipEmployee(null)}
-        lang={lang}
-      />
+      {canViewSalaries && (
+        <PayslipModal
+          employee={payslipEmployee}
+          records={attendanceRecords}
+          settings={settings}
+          currentDate={currentDate}
+          isOpen={Boolean(payslipEmployee)}
+          onClose={() => setPayslipEmployee(null)}
+          lang={lang}
+        />
+      )}
     </div>
   );
 };

@@ -28,6 +28,7 @@ import { ImageViewerModal } from './ImageViewerModal';
 
 export const DailyLogView: React.FC = () => {
   const {
+    authUser,
     employees,
     attendanceRecords,
     currentDate,
@@ -42,6 +43,9 @@ export const DailyLogView: React.FC = () => {
   } = useApp();
 
   const isAr = lang === 'ar';
+  const isSuperAdmin = authUser?.adminRole === 'super_admin';
+  const canEditAttendance = isSuperAdmin || authUser?.permissions?.canEditAttendance !== false;
+  const canViewSalaries = isSuperAdmin || authUser?.permissions?.canViewSalaries !== false;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'trial_only' | 'absent_only' | 'missing_report'>('all');
@@ -136,13 +140,15 @@ export const DailyLogView: React.FC = () => {
         </div>
 
         {/* Action: Mark All Present */}
-        <button
-          onClick={() => markAllPresentToday(currentDate)}
-          className="flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
-        >
-          <CheckCheck className="w-4 h-4 stroke-[2]" />
-          <span>{t.markAllPresent}</span>
-        </button>
+        {canEditAttendance && (
+          <button
+            onClick={() => markAllPresentToday(currentDate)}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
+          >
+            <CheckCheck className="w-4 h-4 stroke-[2]" />
+            <span>{t.markAllPresent}</span>
+          </button>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
@@ -242,8 +248,11 @@ export const DailyLogView: React.FC = () => {
                     <div className="flex items-center bg-[#17181D] p-1 rounded-xl border border-[#2D3039]">
                       <button
                         type="button"
+                        disabled={!canEditAttendance}
                         onClick={() => updateAttendanceStatus(emp.id, currentDate, 'present')}
-                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                          !canEditAttendance ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                        } ${
                           status === 'present'
                             ? 'bg-[#10B981] text-white font-bold shadow-sm'
                             : 'text-[#9CA3AF] hover:text-[#FFFFFF]'
@@ -255,8 +264,11 @@ export const DailyLogView: React.FC = () => {
 
                       <button
                         type="button"
+                        disabled={!canEditAttendance}
                         onClick={() => updateAttendanceStatus(emp.id, currentDate, 'absent')}
-                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                          !canEditAttendance ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                        } ${
                           status === 'absent'
                             ? 'bg-[#F43F5E] text-white font-bold shadow-sm'
                             : 'text-[#9CA3AF] hover:text-[#FFFFFF]'
@@ -270,7 +282,7 @@ export const DailyLogView: React.FC = () => {
                     {/* Live Deduction Display if Absent */}
                     {status === 'absent' && (
                       <div className="bg-[#F43F5E]/15 border border-[#F43F5E]/40 text-[#FB7185] px-2.5 py-1 rounded-lg text-xs font-bold font-mono animate-pulse shrink-0">
-                        -{record?.deductionAmount?.toFixed(1) || '11.4'}$ USD
+                        {canViewSalaries ? `-${record?.deductionAmount?.toFixed(1) || '11.4'}$ USD` : (isAr ? 'غائب' : 'Absent')}
                       </div>
                     )}
                   </div>
@@ -292,8 +304,11 @@ export const DailyLogView: React.FC = () => {
                           <button
                             type="button"
                             key={star}
+                            disabled={!canEditAttendance}
                             onClick={() => updateAdminEvaluation(emp.id, currentDate, { rating: star })}
-                            className="p-0.5 text-[#4B5563] hover:text-[#E06D28] transition-colors cursor-pointer"
+                            className={`p-0.5 transition-colors ${
+                              !canEditAttendance ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-[#E06D28] text-[#4B5563]'
+                            }`}
                           >
                             <Star
                               className={`w-4 h-4 stroke-[1.75] ${
@@ -319,8 +334,11 @@ export const DailyLogView: React.FC = () => {
                         <button
                           type="button"
                           key={s.id}
+                          disabled={!canEditAttendance}
                           onClick={() => updateAdminEvaluation(emp.id, currentDate, { speed: s.id as DeliverySpeed })}
-                          className={`text-[10px] py-1 px-2 rounded-md font-medium transition-all cursor-pointer ${
+                          className={`text-[10px] py-1 px-2 rounded-md font-medium transition-all ${
+                            !canEditAttendance ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                          } ${
                             speed === s.id
                               ? 'bg-[#E06D28]/20 text-[#FB923C] border border-[#E06D28]/50 font-bold'
                               : 'bg-[#1F2127] text-[#9CA3AF] hover:text-[#FFFFFF]'
@@ -334,10 +352,11 @@ export const DailyLogView: React.FC = () => {
                     {/* Feedback Notes Input */}
                     <textarea
                       rows={2}
+                      disabled={!canEditAttendance}
                       value={feedback}
                       onChange={(e) => updateAdminEvaluation(emp.id, currentDate, { feedback: e.target.value })}
-                      placeholder={t.adminNotesPlaceholder}
-                      className="w-full bg-[#1F2127] border border-[#2D3039] rounded-lg p-2 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] transition-colors resize-none"
+                      placeholder={canEditAttendance ? t.adminNotesPlaceholder : (isAr ? 'وضع القراءة فقط' : 'Read-only')}
+                      className="w-full bg-[#1F2127] border border-[#2D3039] rounded-lg p-2 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] transition-colors resize-none disabled:opacity-60"
                     />
                   </div>
 

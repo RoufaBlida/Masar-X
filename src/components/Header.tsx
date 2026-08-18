@@ -45,14 +45,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
     setIsVercelSyncModalOpen
   } = useApp();
 
-  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard', label: lang === 'ar' ? 'الإحصائيات' : 'Dashboard', icon: <LayoutDashboard className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'daily_log', label: lang === 'ar' ? 'السجل اليومي' : 'Daily Log', icon: <CalendarCheck2 className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'team', label: lang === 'ar' ? 'الفريق' : 'Team', icon: <Users className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'trial_decisions', label: lang === 'ar' ? 'قرارات التجربة' : 'Trial Decisions', icon: <Award className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'notifications_log', label: lang === 'ar' ? 'الإشعارات' : 'Notifications', icon: <BellRing className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: <Settings className="w-4 h-4 stroke-[1.75]" /> },
+  const isSuperAdmin = authUser?.adminRole === 'super_admin';
+  const perms = authUser?.permissions;
+
+  const canAccessSettings = isSuperAdmin || perms?.canAccessSettings !== false;
+  const canMakeTrialDecisions = isSuperAdmin || perms?.canMakeTrialDecisions !== false;
+  const canManageTeam = isSuperAdmin || perms?.canManageTeam !== false;
+  const canExportReports = isSuperAdmin || perms?.canExportReports !== false;
+
+  const allNavItems: { id: ActiveTab; label: string; icon: React.ReactNode; visible: boolean }[] = [
+    { id: 'dashboard', label: lang === 'ar' ? 'الإحصائيات' : 'Dashboard', icon: <LayoutDashboard className="w-4 h-4 stroke-[1.75]" />, visible: true },
+    { id: 'daily_log', label: lang === 'ar' ? 'السجل اليومي' : 'Daily Log', icon: <CalendarCheck2 className="w-4 h-4 stroke-[1.75]" />, visible: true },
+    { id: 'team', label: lang === 'ar' ? 'الفريق' : 'Team', icon: <Users className="w-4 h-4 stroke-[1.75]" />, visible: true },
+    { id: 'trial_decisions', label: lang === 'ar' ? 'قرارات التجربة' : 'Trial Decisions', icon: <Award className="w-4 h-4 stroke-[1.75]" />, visible: canMakeTrialDecisions },
+    { id: 'notifications_log', label: lang === 'ar' ? 'الإشعارات' : 'Notifications', icon: <BellRing className="w-4 h-4 stroke-[1.75]" />, visible: true },
+    { id: 'settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: <Settings className="w-4 h-4 stroke-[1.75]" />, visible: canAccessSettings },
   ];
+
+  const navItems = allNavItems.filter(item => item.visible);
 
   const handleExportCSV = () => {
     exportToCSV(employees, attendanceRecords, currentDate, settings, lang);
@@ -117,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           )}
 
           {/* Quick Excel Export */}
-          {isAdmin && !isEmployeePortal && (
+          {isAdmin && !isEmployeePortal && canExportReports && (
             <button
               onClick={handleExportCSV}
               className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium text-[#E06D28] bg-[#1F2127] hover:bg-[#262831] border border-[#2D3039] whitespace-nowrap shrink-0 transition-colors cursor-pointer"
@@ -153,7 +163,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           )}
 
           {/* Add Employee CTA */}
-          {isAdmin && !isEmployeePortal && (
+          {isAdmin && !isEmployeePortal && canManageTeam && (
             <button
               onClick={onOpenAddModal}
               className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] shadow-sm shadow-[#E06D28]/30 whitespace-nowrap shrink-0 transition-all cursor-pointer"
@@ -163,24 +173,28 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
             </button>
           )}
 
-          {/* User Profile / Logout Button */}
+          {/* User Profile & Prominent Logout Button */}
           {authUser && (
-            <div className="flex items-center gap-1.5 ps-1 border-s border-[#2D3039]">
-              <div className="hidden sm:flex flex-col text-end">
-                <span className="text-[11px] font-bold text-white leading-tight truncate max-w-[110px]">
+            <div className="flex items-center gap-2 ps-2 border-s border-[#2D3039]">
+              <div className="hidden md:flex flex-col text-end">
+                <span className="text-[11px] font-bold text-white leading-tight truncate max-w-[120px]">
                   {authUser.name}
                 </span>
-                <span className="text-[9px] text-[#9CA3AF] leading-tight">
-                  {authUser.role === 'admin' ? (lang === 'ar' ? 'مشرف النظام' : 'Admin') : (lang === 'ar' ? 'موظف' : 'Employee')}
+                <span className="text-[9px] text-[#FB923C] font-semibold leading-tight">
+                  {authUser.role === 'admin' 
+                    ? (authUser.adminRole === 'super_admin' ? (lang === 'ar' ? 'المدير العام' : 'Super Admin') : (lang === 'ar' ? 'مشرف متابعة' : 'Supervisor'))
+                    : (lang === 'ar' ? 'موظف' : 'Employee')}
                 </span>
               </div>
 
               <button
+                type="button"
                 onClick={logout}
-                className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#FB7185] hover:bg-[#262831] border border-transparent hover:border-[#FB7185]/30 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all cursor-pointer shadow-sm"
                 title={lang === 'ar' ? 'تسجيل الخروج' : 'Log Out'}
               >
-                <LogOut className="w-4 h-4 stroke-[1.75]" />
+                <LogOut className="w-3.5 h-3.5 stroke-[2]" />
+                <span className="hidden sm:inline">{lang === 'ar' ? 'خروج' : 'Logout'}</span>
               </button>
             </div>
           )}

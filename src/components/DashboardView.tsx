@@ -33,6 +33,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenWeeklySummary, onOpenAddEmployee }) => {
   const { 
+    authUser,
     employees, 
     attendanceRecords, 
     currentDate, 
@@ -45,6 +46,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenWeeklySummar
   } = useApp();
 
   const isAr = lang === 'ar';
+  const isSuperAdmin = authUser?.adminRole === 'super_admin';
+  const canViewSalaries = isSuperAdmin || authUser?.permissions?.canViewSalaries !== false;
+  const canManageTeam = isSuperAdmin || authUser?.permissions?.canManageTeam !== false;
+  const canExportReports = isSuperAdmin || authUser?.permissions?.canExportReports !== false;
+  const canMakeTrialDecisions = isSuperAdmin || authUser?.permissions?.canMakeTrialDecisions !== false;
 
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -188,16 +194,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenWeeklySummar
               <DollarSign className="w-4 h-4 stroke-[1.75]" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-[#E06D28]">
-              ${totalAccruedPayroll.toFixed(1)}
-            </span>
-            <span className="text-xs text-[#9CA3AF]">USD</span>
-          </div>
-          <div className="mt-2 text-[11px] text-[#6B7280] flex items-center justify-between pt-2 border-t border-[#2D3039]">
-            <span>{isAr ? 'الخصومات المطبقة:' : 'Deductions:'}</span>
-            <span className="font-bold text-[#FB7185]">-${totalDeductions.toFixed(1)}</span>
-          </div>
+          {canViewSalaries ? (
+            <>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-bold font-mono text-[#E06D28]">
+                  ${totalAccruedPayroll.toFixed(1)}
+                </span>
+                <span className="text-xs text-[#9CA3AF]">USD</span>
+              </div>
+              <div className="mt-2 text-[11px] text-[#6B7280] flex items-center justify-between pt-2 border-t border-[#2D3039]">
+                <span>{isAr ? 'الخصومات المطبقة:' : 'Deductions:'}</span>
+                <span className="font-bold text-[#FB7185]">-${totalDeductions.toFixed(1)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 py-1 space-y-1">
+              <span className="text-xs font-bold text-[#9CA3AF] bg-[#17181D] border border-[#2D3039] px-2.5 py-1 rounded-lg inline-block">
+                🔒 {isAr ? 'محجوب (يتطلب صلاحية مالية)' : 'Restricted'}
+              </span>
+              <p className="text-[10px] text-[#6B7280]">
+                {isAr ? 'غير مصرح برؤية الرواتب' : 'Salary permission not granted'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* KPI 4: Pending Trial Decisions */}

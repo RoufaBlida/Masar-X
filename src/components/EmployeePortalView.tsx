@@ -24,7 +24,8 @@ import {
   Printer,
   Download,
   CreditCard,
-  Globe2
+  Globe2,
+  LogOut
 } from 'lucide-react';
 import { calculateAccruedSalary, getTrialProgress, formatDate, formatShortDate } from '../utils/calculations';
 import { compressAndConvertToBase64 } from '../utils/imageUtils';
@@ -34,6 +35,8 @@ import { PayslipModal } from './PayslipModal';
 
 export const EmployeePortalView: React.FC = () => {
   const {
+    authUser,
+    logout,
     employees,
     attendanceRecords,
     currentDate,
@@ -168,20 +171,33 @@ export const EmployeePortalView: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Member Switcher */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-xs text-[#9CA3AF] shrink-0">{isAr ? 'تبديل الموظف:' : 'Switch Member:'}</label>
-          <select
-            value={activeEmployee.id}
-            onChange={(e) => setCurrentEmployeeId(e.target.value)}
-            className="bg-[#17181D] border border-[#2D3039] rounded-lg px-2.5 py-1.5 text-xs text-[#F3F4F6] focus:outline-none focus:border-[#E06D28] cursor-pointer w-full sm:w-auto"
+        {/* Quick Member Switcher (for admin) & Logout */}
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+          {authUser?.role === 'admin' && employees.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-[#9CA3AF] shrink-0">{isAr ? 'تبديل:' : 'Switch:'}</label>
+              <select
+                value={activeEmployee.id}
+                onChange={(e) => setCurrentEmployeeId(e.target.value)}
+                className="bg-[#17181D] border border-[#2D3039] rounded-lg px-2 py-1 text-xs text-[#F3F4F6] focus:outline-none focus:border-[#E06D28] cursor-pointer"
+              >
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.accessCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={logout}
+            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all cursor-pointer shadow-sm ms-auto"
           >
-            {employees.map(emp => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name} ({emp.accessCode})
-              </option>
-            ))}
-          </select>
+            <LogOut className="w-3.5 h-3.5 stroke-[2]" />
+            <span>{isAr ? 'تسجيل الخروج' : 'Logout'}</span>
+          </button>
         </div>
       </div>
 

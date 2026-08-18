@@ -1,7 +1,8 @@
 import { Employee, AttendanceRecord, DecisionNotification, AppSettings } from '../types';
 
 export const initialSettings: AppSettings = {
-  adminEmail: 'roufablida360@gmail.com',
+  adminEmail: 'Roufablida90@gmail.com',
+  authorizedAdmins: [],
   defaultWeekendDays: [5, 6], // Friday (5) & Saturday (6)
   defaultSalary: 250,
   defaultDeductionType: 'daily_divided',
@@ -9,9 +10,9 @@ export const initialSettings: AppSettings = {
   weeklySummaryDay: 4, // Thursday
   weeklySummaryTime: '20:00',
   currency: '$',
-  companyName: 'مسار',
-  senderCountry: 'المملكة العربية السعودية',
-  companyAddress: 'الرياض، المملكة العربية السعودية'
+  companyName: 'منظومة مسار',
+  senderCountry: '',
+  companyAddress: ''
 };
 
 // Clean default data - No mock records

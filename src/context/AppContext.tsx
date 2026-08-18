@@ -9,7 +9,11 @@ import {
   AttendanceStatus, 
   DeliverySpeed, 
   ContractType,
-  AuthUser
+  AuthUser,
+  AdminAccount,
+  AdminPermissions,
+  DEFAULT_SUPERVISOR_PERMISSIONS,
+  SUPER_ADMIN_PERMISSIONS
 } from '../types';
 import { 
   initialEmployees, 
@@ -41,11 +45,16 @@ import {
 interface AppContextType {
   // Authentication & Session
   authUser: AuthUser | null;
+  registerAdmin: (name: string, email: string, password?: string, companyName?: string) => Promise<{ success: boolean; error?: string }>;
   loginAsAdmin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   loginAsEmployee: (accessCode: string) => Promise<{ success: boolean; error?: string; employee?: Employee }>;
   logout: () => void;
   clearAllLocalData: () => void;
+  addAuthorizedAdmin: (admin: Omit<AdminAccount, 'id' | 'createdAt'>) => void;
+  updateAuthorizedAdminPermissions: (id: string, permissions: AdminPermissions) => void;
+  removeAuthorizedAdmin: (id: string) => void;
+  updateMasterAdminPassword: (newPass: string) => void;
 
   // Navigation & Mode
   activeTab: ActiveTab;
@@ -311,19 +320,116 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Authentication methods
-  const loginAsAdmin = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+  const registerAdmin = async (
+    name: string,
+    email: string,
+    password?: string,
+    companyName?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanEmail = (email || settings.adminEmail || 'roufablida360@gmail.com').trim();
+      const cleanName = name.trim() || (isAr ? 'المشرف العام' : 'Administrator');
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail) {
+        return { success: false, error: isAr ? 'يرجى إدخال البريد الإلكتروني للمدير' : 'Admin email is required' };
+      }
+
+      const updatedSettings: AppSettings = {
+        ...settings,
+        adminEmail: cleanEmail,
+        adminPassword: password?.trim() || settings.adminPassword || '',
+        companyName: companyName?.trim() || settings.companyName || (isAr ? 'منظومة مسار' : 'Masar')
+      };
+      setSettings(updatedSettings);
+      localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+      saveSettingsToCloud(updatedSettings);
+
       const userObj: AuthUser = {
         id: `admin-${Date.now()}`,
-        name: isAr ? 'المشرف العام' : 'Administrator',
+        name: cleanName,
         email: cleanEmail,
-        role: 'admin'
+        role: 'admin',
+        adminRole: 'super_admin'
       };
       setAuthUser(userObj);
       setIsEmployeePortal(false);
-      showToast(isAr ? `مرحباً بك، تم تسجيل الدخول كـ ${userObj.name}` : `Welcome back, ${userObj.name}!`, 'success');
+      showToast(
+        isAr ? `تم تعيين المشرف العام بنجاح! أهلاً بك يا ${cleanName}` : `Master Admin set successfully! Welcome ${cleanName}`,
+        'success'
+      );
       return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Setup failed' };
+    }
+  };
+
+  const isMasterAdminEmail = (emailStr: string) => {
+    const norm = emailStr.trim().toLowerCase();
+    const configuredMaster = (settings.adminEmail || '').toLowerCase();
+    return norm === 'roufablida90@gmail.com' || 
+           norm === 'roufablida90@gmai.com' || 
+           norm === 'roufablida360@gmail.com' || 
+           (Boolean(configuredMaster) && norm === configuredMaster);
+  };
+
+  const loginAsAdmin = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const enteredPassword = password ? password.trim() : '';
+
+      if (!cleanEmail) {
+        return { success: false, error: isAr ? 'يرجى إدخال البريد الإلكتروني' : 'Please enter admin email' };
+      }
+
+      // 1. Check Master Super Admin (Roufablida90@gmail.com / Master Account)
+      if (isMasterAdminEmail(cleanEmail)) {
+        if (settings.adminPassword && enteredPassword && settings.adminPassword !== enteredPassword) {
+          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لحساب المدير العام' : 'Incorrect password for master admin' };
+        }
+
+        const userObj: AuthUser = {
+          id: 'master-admin',
+          name: isAr ? 'المشرف العام (المالك)' : 'Master Super Admin',
+          email: cleanEmail,
+          role: 'admin',
+          adminRole: 'super_admin',
+          permissions: SUPER_ADMIN_PERMISSIONS
+        };
+        setAuthUser(userObj);
+        setIsEmployeePortal(false);
+        showToast(isAr ? `مرحباً بك يا ${userObj.name}، لديك كامل الصلاحيات الإدارية` : `Welcome back ${userObj.name}!`, 'success');
+        return { success: true };
+      }
+
+      // 2. Check Authorized Added Admins / Supervisors with Custom Granular Permissions
+      const authorizedList = settings.authorizedAdmins || [];
+      const match = authorizedList.find(a => a.email.toLowerCase() === cleanEmail);
+
+      if (match) {
+        if (match.password && enteredPassword && match.password !== enteredPassword) {
+          return { success: false, error: isAr ? 'كلمة المرور غير صحيحة لهذا المشرف' : 'Incorrect password' };
+        }
+
+        const userObj: AuthUser = {
+          id: match.id,
+          name: match.name,
+          email: match.email,
+          role: 'admin',
+          adminRole: match.role,
+          permissions: match.permissions || DEFAULT_SUPERVISOR_PERMISSIONS
+        };
+        setAuthUser(userObj);
+        setIsEmployeePortal(false);
+        showToast(isAr ? `مرحباً بك يا ${match.name}` : `Welcome back ${match.name}!`, 'success');
+        return { success: true };
+      }
+
+      // 3. Unauthorized
+      return { 
+        success: false, 
+        error: isAr 
+          ? 'عذراً، هذا البريد غير مصرح له كإدارة للنظام. يجب أن يقوم المشرف العام (Roufablida90@gmail.com) بإضافتك وتحديد صلاحياتك من داخل الإعدادات أولاً.' 
+          : 'Unauthorized. You must be added and granted permissions by the Super Admin inside settings.' 
+      };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
     }
@@ -333,26 +439,103 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const userObj: AuthUser = {
-        id: user.uid,
-        name: user.displayName || user.email?.split('@')[0] || (isAr ? 'مدير النظام' : 'Admin'),
-        email: user.email || '',
-        role: 'admin',
-        avatar: user.photoURL || undefined
+      const userEmail = (user.email || '').trim().toLowerCase();
+
+      // Check Master or Authorized
+      const isMaster = isMasterAdminEmail(userEmail);
+      const authorizedMatch = (settings.authorizedAdmins || []).find(a => a.email.toLowerCase() === userEmail);
+
+      if (isMaster) {
+        const userObj: AuthUser = {
+          id: user.uid,
+          name: user.displayName || (isAr ? 'المشرف العام' : 'Super Admin'),
+          email: userEmail,
+          role: 'admin',
+          adminRole: 'super_admin',
+          permissions: SUPER_ADMIN_PERMISSIONS,
+          avatar: user.photoURL || undefined
+        };
+        setAuthUser(userObj);
+        setIsEmployeePortal(false);
+        showToast(isAr ? `تم تسجيل الدخول بحساب المشرف العام: ${userEmail}` : `Signed in as Super Admin`, 'success');
+        return { success: true };
+      }
+
+      if (authorizedMatch) {
+        const userObj: AuthUser = {
+          id: user.uid,
+          name: authorizedMatch.name,
+          email: userEmail,
+          role: 'admin',
+          adminRole: authorizedMatch.role,
+          permissions: authorizedMatch.permissions || DEFAULT_SUPERVISOR_PERMISSIONS,
+          avatar: user.photoURL || undefined
+        };
+        setAuthUser(userObj);
+        setIsEmployeePortal(false);
+        showToast(isAr ? `تم تسجيل الدخول كـ ${userObj.name}` : `Signed in as ${userObj.name}`, 'success');
+        return { success: true };
+      }
+
+      // Unauthorized Google account
+      return {
+        success: false,
+        error: isAr
+          ? `حساب Google هذا (${userEmail}) غير مصرح له. يجب أن يقوم المشرف العام (Roufablida90@gmail.com) بإضافتك أولاً من داخل الإعدادات.`
+          : `This Google account (${userEmail}) is not authorized. Ask the Super Admin to add you.`
       };
-      setAuthUser(userObj);
-      setIsEmployeePortal(false);
-      showToast(isAr ? `تم تسجيل الدخول بنجاح بحساب Google: ${userObj.email}` : `Signed in with Google as ${userObj.email}`, 'success');
-      return { success: true };
     } catch (err) {
       console.warn('Google Sign In:', err);
       return { 
         success: false, 
         error: isAr 
           ? 'تعذر إتمام تسجيل الدخول عبر Google. يمكنك استخدام الدخول المباشر بالبريد.' 
-          : 'Google sign-in was canceled or failed. You can use direct email sign in.' 
+          : 'Google sign-in was canceled or failed.' 
       };
     }
+  };
+
+  const addAuthorizedAdmin = (adminData: Omit<AdminAccount, 'id' | 'createdAt'>) => {
+    const newAdmin: AdminAccount = {
+      ...adminData,
+      permissions: adminData.permissions || (adminData.role === 'super_admin' ? SUPER_ADMIN_PERMISSIONS : DEFAULT_SUPERVISOR_PERMISSIONS),
+      id: `adm-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    const updatedList = [...(settings.authorizedAdmins || []), newAdmin];
+    const updatedSettings = { ...settings, authorizedAdmins: updatedList };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? `تمت إضافة وتفويض المشرف ${newAdmin.name} بنجاح` : `Supervisor ${newAdmin.name} authorized`, 'success');
+  };
+
+  const updateAuthorizedAdminPermissions = (id: string, permissions: AdminPermissions) => {
+    const updatedList = (settings.authorizedAdmins || []).map(a => 
+      a.id === id ? { ...a, permissions } : a
+    );
+    const updatedSettings = { ...settings, authorizedAdmins: updatedList };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? 'تم حفظ وتحديث صلاحيات المشرف بنجاح' : 'Permissions saved successfully', 'success');
+  };
+
+  const removeAuthorizedAdmin = (id: string) => {
+    const updatedList = (settings.authorizedAdmins || []).filter(a => a.id !== id);
+    const updatedSettings = { ...settings, authorizedAdmins: updatedList };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? 'تم حذف حساب المشرف' : 'Admin removed', 'info');
+  };
+
+  const updateMasterAdminPassword = (newPass: string) => {
+    const updatedSettings = { ...settings, adminPassword: newPass.trim() };
+    setSettings(updatedSettings);
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'settings', JSON.stringify(updatedSettings));
+    saveSettingsToCloud(updatedSettings);
+    showToast(isAr ? 'تم تحديث كلمة مرور الإدارة بنجاح' : 'Master password updated', 'success');
   };
 
   const loginAsEmployee = async (accessCode: string): Promise<{ success: boolean; error?: string; employee?: Employee }> => {
@@ -817,11 +1000,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider
       value={{
         authUser,
+        registerAdmin,
         loginAsAdmin,
         loginWithGoogle,
         loginAsEmployee,
         logout,
         clearAllLocalData,
+        addAuthorizedAdmin,
+        updateAuthorizedAdminPermissions,
+        removeAuthorizedAdmin,
+        updateMasterAdminPassword,
         activeTab,
         setActiveTab,
         lang,

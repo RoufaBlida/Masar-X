@@ -20,7 +20,9 @@ import {
   CreditCard,
   Globe2,
   Printer,
-  Download
+  Download,
+  CalendarCheck2,
+  XCircle
 } from 'lucide-react';
 import { calculateAccruedSalary, getTrialProgress, formatDate } from '../utils/calculations';
 import { getPayoutMethodLabel } from '../utils/payslipUtils';
@@ -29,6 +31,7 @@ import { PayslipModal } from './PayslipModal';
 
 export const EmployeeDetailModal: React.FC = () => {
   const { 
+    authUser,
     selectedEmployeeForDetail, 
     setSelectedEmployeeForDetail, 
     attendanceRecords, 
@@ -41,6 +44,9 @@ export const EmployeeDetailModal: React.FC = () => {
 
   const isAr = lang === 'ar';
   const emp = selectedEmployeeForDetail;
+  const isSuperAdmin = authUser?.adminRole === 'super_admin';
+  const canViewSalaries = isSuperAdmin || authUser?.permissions?.canViewSalaries !== false;
+  const canMakeTrialDecisions = isSuperAdmin || authUser?.permissions?.canMakeTrialDecisions !== false;
 
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -110,30 +116,61 @@ export const EmployeeDetailModal: React.FC = () => {
         {/* Modal Body */}
         <div className="p-5 sm:p-6 space-y-6">
           {/* Key Info Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
-              <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'الراتب الأساسي' : 'Base Salary'}</span>
-              <span className="text-sm font-bold text-[#FFFFFF] mt-0.5 block">${emp.baseSalary}</span>
-            </div>
+          {canViewSalaries ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'الراتب الأساسي' : 'Base Salary'}</span>
+                <span className="text-sm font-bold text-[#FFFFFF] mt-0.5 block">${emp.baseSalary}</span>
+              </div>
 
-            <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
-              <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'المستحق حتى الآن' : 'Accrued'}</span>
-              <span className="text-sm font-bold text-[#FB923C] mt-0.5 block">${stats.accruedAmount.toFixed(1)}</span>
-            </div>
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'المستحق حتى الآن' : 'Accrued'}</span>
+                <span className="text-sm font-bold text-[#FB923C] mt-0.5 block">${stats.accruedAmount.toFixed(1)}</span>
+              </div>
 
-            <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
-              <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'إجمالي الخصومات' : 'Deductions'}</span>
-              <span className="text-sm font-bold text-[#FB7185] mt-0.5 block">-${stats.totalDeductions.toFixed(1)}</span>
-            </div>
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'إجمالي الخصومات' : 'Deductions'}</span>
+                <span className="text-sm font-bold text-[#FB7185] mt-0.5 block">-${stats.totalDeductions.toFixed(1)}</span>
+              </div>
 
-            <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
-              <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'متوسط التقييم' : 'Avg Rating'}</span>
-              <span className="text-sm font-bold text-[#FB923C] mt-0.5 flex items-center justify-center gap-1">
-                <Star className="w-3.5 h-3.5 fill-[#E06D28] text-[#E06D28] stroke-[1.75]" />
-                <span>{stats.ratingAverage}</span>
-              </span>
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'متوسط التقييم' : 'Avg Rating'}</span>
+                <span className="text-sm font-bold text-[#FB923C] mt-0.5 flex items-center justify-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-[#E06D28] text-[#E06D28] stroke-[1.75]" />
+                  <span>{stats.ratingAverage}</span>
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'أيام الحضور' : 'Present Days'}</span>
+                <span className="text-sm font-bold text-[#10B981] mt-0.5 block">{stats.totalPresentDays} {isAr ? 'يوم' : 'days'}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'أيام الغياب' : 'Absent Days'}</span>
+                <span className="text-sm font-bold text-[#FB7185] mt-0.5 block">{stats.totalAbsentDays} {isAr ? 'يوم' : 'days'}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'نسبة الالتزام' : 'Attendance'}</span>
+                <span className="text-sm font-bold text-[#FB923C] mt-0.5 block">
+                  {(stats.totalPresentDays + stats.totalAbsentDays) > 0 
+                    ? Math.round((stats.totalPresentDays / (stats.totalPresentDays + stats.totalAbsentDays)) * 100) 
+                    : 100}%
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-center">
+                <span className="text-[10px] text-[#9CA3AF] block">{isAr ? 'متوسط التقييم' : 'Avg Rating'}</span>
+                <span className="text-sm font-bold text-[#FB923C] mt-0.5 flex items-center justify-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-[#E06D28] text-[#E06D28] stroke-[1.75]" />
+                  <span>{stats.ratingAverage}</span>
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Contact and Metadata details */}
           <div className="p-4 rounded-xl bg-[#17181D] border border-[#2D3039] text-xs space-y-2">
@@ -157,31 +194,33 @@ export const EmployeeDetailModal: React.FC = () => {
             </div>
 
             {/* Payout & Transfer Route Details */}
-            <div className="pt-2 border-t border-[#2D3039] flex items-center justify-between flex-wrap gap-2 text-[11px]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[#9CA3AF] flex items-center gap-1">
-                  <CreditCard className="w-3.5 h-3.5 text-[#E06D28]" />
-                  <span className="text-[#FFFFFF] font-semibold">{getPayoutMethodLabel(emp.payoutMethod, lang)}</span>
-                </span>
-                <span className="text-[#9CA3AF] flex items-center gap-1 font-mono text-[10px] bg-[#1F2127] px-2 py-0.5 rounded border border-[#2D3039]">
-                  {emp.payoutDetails || 'لم يُحدد الحساب'}
-                </span>
-                <span className="text-[#9CA3AF] flex items-center gap-1">
-                  <Globe2 className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  <span>🇸🇦 {emp.senderCountry || 'السعودية'} ➔ 🌍 {emp.recipientCountry || 'الجزائر'}</span>
-                </span>
-              </div>
+            {canViewSalaries && (
+              <div className="pt-2 border-t border-[#2D3039] flex items-center justify-between flex-wrap gap-2 text-[11px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[#9CA3AF] flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-[#E06D28]" />
+                    <span className="text-[#FFFFFF] font-semibold">{getPayoutMethodLabel(emp.payoutMethod, lang)}</span>
+                  </span>
+                  <span className="text-[#9CA3AF] flex items-center gap-1 font-mono text-[10px] bg-[#1F2127] px-2 py-0.5 rounded border border-[#2D3039]">
+                    {emp.payoutDetails || 'لم يُحدد الحساب'}
+                  </span>
+                  <span className="text-[#9CA3AF] flex items-center gap-1">
+                    <Globe2 className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>🇸🇦 {emp.senderCountry || 'السعودية'} ➔ 🌍 {emp.recipientCountry || 'الجزائر'}</span>
+                  </span>
+                </div>
 
-              {/* Quick Payslip Trigger */}
-              <button
-                type="button"
-                onClick={() => setIsPayslipOpen(true)}
-                className="py-1 px-2.5 rounded-lg bg-[#E06D28]/15 hover:bg-[#E06D28]/25 text-[#FB923C] font-bold text-[11px] flex items-center gap-1 border border-[#E06D28]/30 transition-colors cursor-pointer"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>{isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip PDF'}</span>
-              </button>
-            </div>
+                {/* Quick Payslip Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setIsPayslipOpen(true)}
+                  className="py-1 px-2.5 rounded-lg bg-[#E06D28]/15 hover:bg-[#E06D28]/25 text-[#FB923C] font-bold text-[11px] flex items-center gap-1 border border-[#E06D28]/30 transition-colors cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{isAr ? 'قسيمة الراتب (Fiche de Paie)' : 'View Payslip PDF'}</span>
+                </button>
+              </div>
+            )}
 
             {emp.softwareTools && emp.softwareTools.length > 0 && (
               <div className="pt-2 flex items-center gap-1.5 flex-wrap">
@@ -198,108 +237,75 @@ export const EmployeeDetailModal: React.FC = () => {
           {/* Attendance and Rating Log Records */}
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-[#FFFFFF] flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#E06D28] stroke-[1.75]" />
-              <span>{isAr ? 'سجل الحضور والتقييمات اليومية للموظف' : 'Daily Attendance & Evaluation Log'}</span>
+              <Calendar className="w-4 h-4 text-[#E06D28] stroke-[1.75]" />
+              <span>{isAr ? 'سجل الحضور والتقييمات اليومية' : 'Daily Attendance & Work Reports'}</span>
             </h3>
 
-            <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-              {empRecords.length === 0 ? (
-                <div className="text-center py-6 text-xs text-[#6B7280]">
-                  {isAr ? 'لا توجد سجلات مسجلة بعد' : 'No records yet'}
-                </div>
-              ) : (
-                empRecords.map(r => (
-                  <div key={r.id} className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-xs flex flex-col gap-1.5">
+            {empRecords.length === 0 ? (
+              <div className="p-4 rounded-xl bg-[#17181D] border border-[#2D3039] text-center text-xs text-[#9CA3AF]">
+                {isAr ? 'لا توجد سجلات حضور مسجلة لهذا الموظف بعد.' : 'No attendance recorded yet for this member.'}
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {empRecords.map(rec => (
+                  <div
+                    key={rec.id}
+                    className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] flex flex-col gap-2"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#F3F4F6]">{formatDate(r.date, lang)}</span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            r.status === 'present'
-                              ? 'bg-[#10B981]/20 text-[#10B981]'
-                              : r.status === 'absent'
-                              ? 'bg-[#F43F5E]/20 text-[#FB7185]'
-                              : 'bg-[#2D3039] text-[#9CA3AF]'
-                          }`}
-                        >
-                          {r.status === 'present' ? t.status_present : r.status === 'absent' ? t.status_absent : t.status_weekend}
-                        </span>
+                        <span className={`w-2 h-2 rounded-full ${rec.status === 'present' ? 'bg-[#10B981]' : 'bg-[#F43F5E]'}`} />
+                        <span className="text-xs font-bold font-mono text-[#FFFFFF]">{formatDate(rec.date, lang)}</span>
                       </div>
 
-                      {r.adminRating && r.adminRating > 0 && (
-                        <div className="flex items-center gap-1 text-[#FB923C] font-bold">
-                          <Star className="w-3.5 h-3.5 fill-[#E06D28] text-[#E06D28] stroke-[1.75]" />
-                          <span>{r.adminRating} / 5</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {rec.adminRating && rec.adminRating > 0 && (
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map(st => (
+                              <Star
+                                key={st}
+                                className={`w-3 h-3 ${st <= (rec.adminRating || 0) ? 'text-[#E06D28] fill-[#E06D28]' : 'text-[#4B5563]'}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${rec.status === 'present' ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-[#F43F5E]/20 text-[#FB7185]'}`}>
+                          {rec.status === 'present' ? t.status_present : t.status_absent}
+                        </span>
+                      </div>
                     </div>
 
-                    {r.adminFeedback && (
-                      <p className="text-xs text-[#9CA3AF] bg-[#1F2127] p-2 rounded-lg border border-[#2D3039]">
-                        <span className="text-[10px] text-[#FB923C] font-semibold block">{isAr ? 'تقييم الإدارة:' : 'Admin Note:'}</span>
-                        {r.adminFeedback}
+                    {rec.employeeTaskReport && (
+                      <p className="text-[11px] text-[#9CA3AF] bg-[#1F2127] p-2 rounded-lg border border-[#2D3039]/60">
+                        {rec.employeeTaskReport}
                       </p>
                     )}
 
-                    {r.employeeTaskReport && (
-                      <p className="text-xs text-[#F3F4F6] bg-[#1F2127] p-2 rounded-lg border border-[#2D3039]">
-                        <span className="text-[10px] text-[#FB923C] font-semibold block">{isAr ? 'تقرير إنجاز الموظف:' : 'Employee Report:'}</span>
-                        {r.employeeTaskReport}
-                      </p>
-                    )}
-
-                    {/* Attached Images */}
-                    {r.reportImages && r.reportImages.length > 0 && (
-                      <div className="pt-1">
-                        <span className="text-[10px] text-[#9CA3AF] font-semibold mb-1 flex items-center gap-1">
-                          <ImageIcon className="w-3 h-3 text-[#E06D28] stroke-[1.75]" />
-                          <span>{t.attachedImages} ({r.reportImages.length}):</span>
-                        </span>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                          {r.reportImages.map((img, imgIdx) => (
-                            <button
-                              key={imgIdx}
-                              type="button"
-                              onClick={() => handleOpenLightbox(r.reportImages!, imgIdx)}
-                              className="aspect-video rounded-lg overflow-hidden border border-[#2D3039] hover:border-[#E06D28] transition-all cursor-pointer group relative shadow-sm"
-                              title={t.viewImage}
-                            >
-                              <img
-                                src={img}
-                                alt={`report-attachment-${imgIdx + 1}`}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                <Eye className="w-3 h-3 stroke-[2]" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                    {/* Report Attachments */}
+                    {rec.reportImages && rec.reportImages.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        {rec.reportImages.map((img, imgIdx) => (
+                          <button
+                            key={imgIdx}
+                            type="button"
+                            onClick={() => handleOpenLightbox(rec.reportImages!, imgIdx)}
+                            className="w-10 h-8 rounded-lg overflow-hidden border border-[#2D3039] hover:border-[#E06D28] transition-colors cursor-pointer"
+                          >
+                            <img src={img} alt="thumb" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
                       </div>
                     )}
-
-                    {r.videoDeliverableUrl && (
-                      <a
-                        href={r.videoDeliverableUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-[11px] text-[#E06D28] hover:underline w-fit"
-                      >
-                        <Video className="w-3 h-3 stroke-[1.75]" />
-                        <span>{isAr ? 'فتح رابط الفيديو والتسليم' : 'View Deliverable'}</span>
-                        <ExternalLink className="w-3 h-3 stroke-[1.75]" />
-                      </a>
-                    )}
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer Actions */}
         <div className="p-5 border-t border-[#2D3039] flex items-center justify-between gap-3 bg-[#1F2127]">
-          {isTrial ? (
+          {isTrial && canMakeTrialDecisions ? (
             <button
               onClick={() => {
                 setSelectedEmployeeForDetail(null);
@@ -310,6 +316,10 @@ export const EmployeeDetailModal: React.FC = () => {
               <Award className="w-4 h-4 stroke-[1.75]" />
               <span>{isAr ? 'اتخاذ قرار الترقية الآن' : 'Take Promotion Decision'}</span>
             </button>
+          ) : isTrial ? (
+            <span className="text-xs text-[#9CA3AF]">
+              {isAr ? 'فترة التجربة جارية' : 'Trial period in progress'}
+            </span>
           ) : (
             <div className="text-xs text-[#10B981] font-bold flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 stroke-[2]" />
@@ -338,15 +348,17 @@ export const EmployeeDetailModal: React.FC = () => {
       />
 
       {/* Official Monthly Payslip (Fiche de Paie) Modal */}
-      <PayslipModal
-        employee={emp}
-        records={attendanceRecords}
-        settings={settings}
-        currentDate={currentDate}
-        isOpen={isPayslipOpen}
-        onClose={() => setIsPayslipOpen(false)}
-        lang={lang}
-      />
+      {canViewSalaries && (
+        <PayslipModal
+          employee={emp}
+          records={attendanceRecords}
+          settings={settings}
+          currentDate={currentDate}
+          isOpen={isPayslipOpen}
+          onClose={() => setIsPayslipOpen(false)}
+          lang={lang}
+        />
+      )}
     </div>
   );
 };
