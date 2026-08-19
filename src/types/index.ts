@@ -105,6 +105,54 @@ export interface DecisionNotification {
   };
 }
 
+export interface ChatThread {
+  id: string;
+  employeeId: string;
+  title: string;
+  status: 'active' | 'closed';
+  createdAt: string;
+  closedAt?: string;
+  closedBy?: string;
+  closedByName?: string;
+  lastMessageText?: string;
+  lastMessageTimestamp?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId?: string;
+  employeeId: string;
+  senderRole: 'admin' | 'employee';
+  senderName: string;
+  senderId: string;
+  text: string;
+  attachmentUrl?: string;
+  timestamp: string; // ISO string
+  readByAdmin: boolean;
+  readByEmployee: boolean;
+  readByEmployeeAt?: string; // Exact ISO timestamp when the employee read the message (for admin visibility)
+  readByAdminAt?: string;
+}
+
+export interface EmployeeNotification {
+  id: string;
+  employeeId: string;
+  type: 'manager_feedback' | 'rating' | 'deduction' | 'chat_message' | 'contract_milestone' | 'general';
+  title: string;
+  message: string;
+  date: string;
+  timestamp: string;
+  isRead: boolean;
+  meta?: {
+    rating?: number;
+    ratingSpeed?: DeliverySpeed;
+    feedbackText?: string;
+    deductionAmount?: number;
+    deductionReason?: string;
+    chatSenderName?: string;
+  };
+}
+
 export interface AdminPermissions {
   canViewSalaries: boolean; // رؤية الرواتب والمبالغ المالية والخصومات
   canEditSalaries: boolean; // تعديل رواتب الموظفين وقواعد الخصم

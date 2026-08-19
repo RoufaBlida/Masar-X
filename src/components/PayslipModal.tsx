@@ -84,7 +84,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
       <div className="payslip-modal-card relative w-full max-w-3xl bg-[#17181D] border border-[#2D3039] rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none print:bg-white print:w-full print:my-0">
         
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="p-4 bg-[#1F2127] border-b border-[#2D3039] flex flex-wrap items-center justify-between gap-3 print:hidden shrink-0">
+        <div className="p-4 bg-[#1F2127] border-b border-[#2D3039] flex flex-wrap items-center justify-between gap-3 no-print shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#E06D28]/15 text-[#E06D28] flex items-center justify-center">
               <FileText className="w-5 h-5 stroke-[1.75]" />
@@ -134,7 +134,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] flex items-center gap-2 shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 stroke-[2]" />
-              <span>{isAr ? 'طباعة / تحميل PDF' : 'Print / Save PDF'}</span>
+              <span>{isAr ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}</span>
             </button>
 
             {/* Close Button */}
@@ -149,20 +149,32 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
           </div>
         </div>
 
+        {/* Print Background Graphics Hint Banner */}
+        <div className="bg-[#1F2127]/60 px-4 py-1.5 border-b border-[#2D3039] flex items-center justify-between text-[11px] text-[#9CA3AF] no-print shrink-0">
+          <span className="flex items-center gap-1.5">
+            <span className="text-[#FB923C]">💡</span>
+            <span>
+              {isAr 
+                ? 'تلميح: عند الطباعة أو الحفظ كـ PDF، تظهر القسيمة بنفس مظهر المعاينة تماماً (يُرجى التأكد من تفعيل خيار "رسومات الخلفية" في نافذة الطباعة).' 
+                : 'Tip: For full-color PDF output, enable "Background graphics" in the print dialog.'}
+            </span>
+          </span>
+        </div>
+
         {/* Scrollable Printable Payslip Area */}
-        <div className="payslip-scroll-area overflow-y-auto p-4 sm:p-6 bg-[#111216] print:p-0 print:bg-white print:overflow-visible">
+        <div className="payslip-scroll-area overflow-y-auto p-4 sm:p-6 bg-[#111216]">
           
           {/* A4 Sheet Surface */}
           <div
             ref={printContainerRef}
-            className="payslip-sheet mx-auto max-w-3xl bg-white text-[#1E293B] rounded-xl shadow-lg border border-[#E2E8F0] p-6 sm:p-8 space-y-5 print:shadow-none print:border print:border-[#CBD5E1] print:p-6 print:rounded-lg print:w-full print:max-w-none font-sans"
+            className="payslip-sheet mx-auto max-w-3xl bg-white text-[#1E293B] rounded-xl shadow-lg border border-[#E2E8F0] p-6 sm:p-8 space-y-5 font-sans"
             dir={isAr ? 'rtl' : 'ltr'}
           >
             {/* Header: Company Wordmark & Payslip Title */}
             <div className="flex flex-row items-start justify-between border-b-2 border-[#E06D28] pb-4 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1F2127] text-white flex items-center justify-center print:bg-[#0F172A]">
+                  <div className="w-8 h-8 rounded-lg bg-[#1F2127] text-white flex items-center justify-center">
                     <BrandLogo size="sm" />
                   </div>
                   <div>
@@ -433,7 +445,7 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
             </div>
 
             {/* Net Salary Payable Callout Box */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md print:bg-white print:text-[#0F172A] print:border-2 print:border-[#0F172A]">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-[#334155]">
               <div>
                 <span className="text-[11px] font-mono text-[#FDBA74] uppercase tracking-wider block font-bold">
                   {isAr ? 'صافي الراتب النهائي المستحق للصرف' : 'NET PAYABLE COMPENSATION'}

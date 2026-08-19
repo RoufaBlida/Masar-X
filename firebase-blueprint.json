@@ -71,6 +71,45 @@
         "updatedAt": { "type": "string", "description": "Last update timestamp" }
       },
       "required": ["id", "companyName", "defaultSalary"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Direct chat messages between management and employees",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID" },
+        "threadId": { "type": "string", "description": "Associated thread ID" },
+        "employeeId": { "type": "string", "description": "Associated employee ID" },
+        "senderRole": { "type": "string", "description": "admin or employee" },
+        "senderName": { "type": "string", "description": "Sender name" },
+        "senderId": { "type": "string", "description": "Sender identifier" },
+        "text": { "type": "string", "description": "Message text" },
+        "attachmentUrl": { "type": "string", "description": "Optional attachment URL" },
+        "timestamp": { "type": "string", "description": "Creation timestamp" },
+        "readByAdmin": { "type": "boolean", "description": "Read status by admin" },
+        "readByEmployee": { "type": "boolean", "description": "Read status by employee" },
+        "readByEmployeeAt": { "type": "string", "description": "Timestamp when employee read the message" },
+        "readByAdminAt": { "type": "string", "description": "Timestamp when admin read the message" }
+      },
+      "required": ["id", "employeeId", "senderRole", "text", "timestamp"]
+    },
+    "ChatThread": {
+      "title": "ChatThread",
+      "description": "Chat thread sessions and archive management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique thread ID" },
+        "employeeId": { "type": "string", "description": "Associated employee ID" },
+        "title": { "type": "string", "description": "Thread title or subject" },
+        "status": { "type": "string", "description": "active or closed" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "closedAt": { "type": "string", "description": "Closure timestamp" },
+        "closedBy": { "type": "string", "description": "Admin ID who closed the thread" },
+        "closedByName": { "type": "string", "description": "Admin name who closed the thread" },
+        "lastMessageText": { "type": "string", "description": "Snippet of last message" },
+        "lastMessageTimestamp": { "type": "string", "description": "Timestamp of last message" }
+      },
+      "required": ["id", "employeeId", "title", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -85,6 +124,14 @@
     "/app_settings/{settingsId}": {
       "schema": "AppSettings",
       "description": "Global application configuration documents"
+    },
+    "/chat_messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Collection of direct chat messages"
+    },
+    "/chat_threads/{threadId}": {
+      "schema": "ChatThread",
+      "description": "Collection of chat threads and archives"
     }
   }
 }

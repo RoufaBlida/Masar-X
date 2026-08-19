@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ActiveTab } from '../types';
 import { 
@@ -17,7 +17,11 @@ import {
   Database,
   Cloud,
   Volume2,
-  VolumeX
+  VolumeX,
+  Bell,
+  MessageSquare,
+  Check,
+  Sparkles
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
 import { BrandLogo } from './BrandLogo';
@@ -39,14 +43,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
     isEmployeePortal, 
     setIsEmployeePortal,
     employees,
+    currentEmployeeId,
     attendanceRecords,
     currentDate,
     settings,
     isCloudConnected,
     isCloudSyncing,
     setIsVercelSyncModalOpen,
-    toggleSound
+    toggleSound,
+    employeeNotifications,
+    markEmployeeNotificationAsRead,
+    markAllEmployeeNotificationsAsRead,
+    getUnreadChatCount,
+    setIsChatOpen,
+    setActiveChatEmployeeId
   } = useApp();
+
+  const [isHeaderNotifsOpen, setIsHeaderNotifsOpen] = useState(false);
 
   const isSuperAdmin = authUser?.adminRole === 'super_admin';
   const perms = authUser?.permissions;
@@ -55,6 +68,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
   const canMakeTrialDecisions = isSuperAdmin || perms?.canMakeTrialDecisions !== false;
   const canManageTeam = isSuperAdmin || perms?.canManageTeam !== false;
   const canExportReports = isSuperAdmin || perms?.canExportReports !== false;
+
+  const isAr = lang === 'ar';
+  const isEmployeeView = isEmployeePortal || authUser?.role === 'employee';
+
+  const activeEmployee = employees.find(e => e.id === currentEmployeeId) || employees[0];
+  const myNotifications = activeEmployee 
+    ? employeeNotifications.filter(n => n.employeeId === activeEmployee.id)
+    : [];
+  const unreadNotifsCount = myNotifications.filter(n => !n.isRead).length;
+  const unreadChatCount = activeEmployee ? getUnreadChatCount(activeEmployee.id) : 0;
 
   const allNavItems: { id: ActiveTab; label: string; icon: React.ReactNode; visible: boolean }[] = [
     { id: 'dashboard', label: lang === 'ar' ? 'الإحصائيات' : 'Dashboard', icon: <LayoutDashboard className="w-4 h-4 stroke-[1.75]" />, visible: true },
@@ -132,6 +155,116 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
             <Globe2 className="w-3.5 h-3.5 stroke-[1.75]" />
             <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
           </button>
+
+          {/* EMPLOYEE PORTAL NOTIFICATION BELL (STICKY AT TOP BAR) */}
+          {isEmployeeView && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsHeaderNotifsOpen(!isHeaderNotifsOpen)}
+                className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#1F2127] hover:bg-[#262831] border border-[#2D3039] hover:border-[#E06D28]/50 text-[#F3F4F6] hover:text-[#FB923C] transition-all cursor-pointer relative shadow-sm"
+                title={isAr ? 'الإشعارات والملاحظات الإدارية' : 'Notifications Hub'}
+              >
+                <div className="relative">
+                  <Bell className="w-4 h-4 text-[#FB923C]" />
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#E06D28] text-white font-mono font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-[#1F2127] animate-pulse">
+                      {unreadNotifsCount}
+                    </span>
+                  )}
+                </div>
+                <span className="hidden sm:inline text-xs font-bold text-white">
+                  {isAr ? 'الإشعارات' : 'Alerts'}
+                </span>
+                {unreadNotifsCount > 0 && (
+                  <span className="bg-[#E06D28]/20 text-[#FB923C] border border-[#E06D28]/40 px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold">
+                    {unreadNotifsCount} {isAr ? 'جديد' : 'new'}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications Dropdown inside Sticky Top Bar */}
+              {isHeaderNotifsOpen && (
+                <div className="absolute end-0 top-full mt-2 w-80 sm:w-96 bg-[#17181D] border border-[#2D3039] rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                  <div className="p-3 bg-[#1F2127] border-b border-[#2D3039] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-[#FB923C]" />
+                      <h4 className="text-xs font-bold text-white">{t.notificationsHub}</h4>
+                    </div>
+                    {activeEmployee && myNotifications.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => markAllEmployeeNotificationsAsRead(activeEmployee.id)}
+                        className="text-[10px] text-[#FB923C] hover:underline cursor-pointer"
+                      >
+                        {t.markAllAsRead}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto p-2 space-y-2">
+                    {myNotifications.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-[#6B7280]">
+                        <Check className="w-6 h-6 mx-auto mb-1 text-[#10B981]" />
+                        <p>{t.noNotifications}</p>
+                      </div>
+                    ) : (
+                      myNotifications.map(notif => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            markEmployeeNotificationAsRead(notif.id);
+                            if (notif.type === 'chat_message' && activeEmployee) {
+                              setActiveChatEmployeeId(activeEmployee.id);
+                              setIsChatOpen(true);
+                              setIsHeaderNotifsOpen(false);
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                            notif.isRead
+                              ? 'bg-[#1F2127]/60 border-[#2D3039] opacity-80'
+                              : 'bg-[#29221C] border-[#E06D28]/40 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-white text-[11px]">{notif.title}</span>
+                            <span className="text-[9px] text-[#9CA3AF] font-mono">{notif.date}</span>
+                          </div>
+                          <p className="text-[11px] text-[#D1D5DB] leading-relaxed">{notif.message}</p>
+                          {notif.meta?.feedbackText && (
+                            <div className="mt-1.5 p-1.5 rounded bg-[#17181D] text-[10px] text-[#FB923C] italic border border-[#2D3039]">
+                              "{notif.meta.feedbackText}"
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* EMPLOYEE PORTAL DIRECT CHAT TRIGGER (STICKY TOP BAR) */}
+          {isEmployeeView && activeEmployee && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveChatEmployeeId(activeEmployee.id);
+                setIsChatOpen(true);
+              }}
+              className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-[#FB923C] bg-[#E06D28]/15 hover:bg-[#E06D28]/25 border border-[#E06D28]/30 transition-all cursor-pointer shadow-sm relative"
+              title={isAr ? 'المحادثة الخاصة' : 'Direct Chat'}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isAr ? 'الرسائل' : 'Chat'}</span>
+              {unreadChatCount > 0 && (
+                <span className="bg-red-500 text-white font-mono text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                  {unreadChatCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Cloud Database & Vercel Sync Trigger */}
           {isAdmin && !isEmployeePortal && (

@@ -25,7 +25,12 @@ import {
   Download,
   CreditCard,
   Globe2,
-  LogOut
+  LogOut,
+  Bell,
+  MessageSquare,
+  MessageCircle,
+  AlertTriangle,
+  Check
 } from 'lucide-react';
 import { calculateAccruedSalary, getTrialProgress, formatDate, formatShortDate } from '../utils/calculations';
 import { compressAndConvertToBase64 } from '../utils/imageUtils';
@@ -45,6 +50,12 @@ export const EmployeePortalView: React.FC = () => {
     setCurrentEmployeeId,
     getRecordForEmployeeAndDate,
     updateEmployeeReport,
+    employeeNotifications,
+    markEmployeeNotificationAsRead,
+    markAllEmployeeNotificationsAsRead,
+    setIsChatOpen,
+    setActiveChatEmployeeId,
+    getUnreadChatCount,
     lang,
     t
   } = useApp();
@@ -63,6 +74,9 @@ export const EmployeePortalView: React.FC = () => {
 
   // Payslip Modal state
   const [isPayslipOpen, setIsPayslipOpen] = useState(false);
+
+  // Notifications Modal / Dropdown state
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Lightbox Modal state
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -91,6 +105,16 @@ export const EmployeePortalView: React.FC = () => {
   const stats = calculateAccruedSalary(activeEmployee, attendanceRecords, currentDate, settings);
   const trialProg = getTrialProgress(activeEmployee, currentDate);
   const isTrial = activeEmployee.contractType === '1_week_trial';
+
+  // Notifications filtered for this employee
+  const myNotifications = employeeNotifications.filter(n => n.employeeId === activeEmployee.id);
+  const unreadNotifsCount = myNotifications.filter(n => !n.isRead).length;
+  const unreadChatCount = getUnreadChatCount(activeEmployee.id);
+
+  // Find the latest manager note/feedback (today or recent)
+  const recentFeedbackRecord = attendanceRecords
+    .filter(r => r.employeeId === activeEmployee.id && (r.adminFeedback || r.adminRating))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
 
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -148,9 +172,9 @@ export const EmployeePortalView: React.FC = () => {
     .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn pb-16">
-      {/* Top Banner: Employee Header with Member Switcher */}
-      <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn pb-24">
+      {/* Top Banner: Employee Header with Member Switcher & Notifications Bell */}
+      <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative">
         <div className="flex items-center gap-3">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-base shadow-sm shrink-0"
@@ -171,7 +195,7 @@ export const EmployeePortalView: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Member Switcher (for admin) & Logout */}
+        {/* Actions Row: Switcher + Notification Center Button + Chat Trigger + Logout */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           {authUser?.role === 'admin' && employees.length > 1 && (
             <div className="flex items-center gap-1.5">
@@ -190,16 +214,146 @@ export const EmployeePortalView: React.FC = () => {
             </div>
           )}
 
+          {/* Notifications Center Bell */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="p-2 rounded-xl bg-[#17181D] hover:bg-[#262831] border border-[#2D3039] text-[#F3F4F6] hover:text-[#FB923C] transition-all cursor-pointer relative shadow-sm"
+              title={isAr ? 'مركز الإشعارات والملاحظات' : 'Notifications Hub'}
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotifsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#E06D28] text-white font-mono font-bold text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-[#1F2127] animate-pulse">
+                  {unreadNotifsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown Panel */}
+            {isNotificationsOpen && (
+              <div className="absolute end-0 top-full mt-2 w-80 sm:w-96 bg-[#17181D] border border-[#2D3039] rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                <div className="p-3 bg-[#1F2127] border-b border-[#2D3039] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-[#FB923C]" />
+                    <h4 className="text-xs font-bold text-white">{t.notificationsHub}</h4>
+                  </div>
+                  {myNotifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllEmployeeNotificationsAsRead(activeEmployee.id)}
+                      className="text-[10px] text-[#FB923C] hover:underline cursor-pointer"
+                    >
+                      {t.markAllAsRead}
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-72 overflow-y-auto p-2 space-y-2">
+                  {myNotifications.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-[#6B7280]">
+                      <Check className="w-6 h-6 mx-auto mb-1 text-[#10B981]" />
+                      <p>{t.noNotifications}</p>
+                    </div>
+                  ) : (
+                    myNotifications.map(notif => (
+                      <div
+                        key={notif.id}
+                        onClick={() => markEmployeeNotificationAsRead(notif.id)}
+                        className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          notif.isRead
+                            ? 'bg-[#1F2127]/60 border-[#2D3039] opacity-80'
+                            : 'bg-[#29221C] border-[#E06D28]/40 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-white text-[11px]">{notif.title}</span>
+                          <span className="text-[9px] text-[#9CA3AF] font-mono">{notif.date}</span>
+                        </div>
+                        <p className="text-[11px] text-[#D1D5DB] leading-relaxed">{notif.message}</p>
+                        {notif.meta?.feedbackText && (
+                          <div className="mt-1.5 p-1.5 rounded bg-[#17181D] text-[10px] text-[#FB923C] italic border border-[#2D3039]">
+                            "{notif.meta.feedbackText}"
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Chat Open Trigger */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveChatEmployeeId(activeEmployee.id);
+              setIsChatOpen(true);
+            }}
+            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-[#FB923C] bg-[#E06D28]/15 hover:bg-[#E06D28]/25 border border-[#E06D28]/30 transition-all cursor-pointer shadow-sm relative"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>{isAr ? 'الرسائل الخاصة' : 'Direct Chat'}</span>
+            {unreadChatCount > 0 && (
+              <span className="bg-red-500 text-white font-mono text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={logout}
-            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all cursor-pointer shadow-sm ms-auto"
+            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all cursor-pointer shadow-sm ms-auto sm:ms-0"
           >
             <LogOut className="w-3.5 h-3.5 stroke-[2]" />
             <span>{isAr ? 'تسجيل الخروج' : 'Logout'}</span>
           </button>
         </div>
       </div>
+
+      {/* Prominent Supervisor Feedback / Manager Notes Card */}
+      {recentFeedbackRecord && recentFeedbackRecord.adminFeedback && (
+        <div className="bg-[#29221C] border border-[#E06D28]/50 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#E06D28] text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>{isAr ? 'توجيه وملاحظة المشرف الأخيرة' : 'Latest Supervisor Feedback & Note'}</span>
+                </h3>
+                <span className="text-[10px] font-mono text-[#FB923C] bg-[#17181D] px-2 py-0.5 rounded-md border border-[#E06D28]/30">
+                  {formatShortDate(recentFeedbackRecord.date, lang)}
+                </span>
+                {recentFeedbackRecord.adminRating && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#FB923C] bg-[#17181D] px-2 py-0.5 rounded-md border border-[#2D3039]">
+                    <Star className="w-3 h-3 fill-[#E06D28] text-[#E06D28]" />
+                    <span>{recentFeedbackRecord.adminRating} / 5</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[#F3F4F6] mt-1.5 leading-relaxed italic bg-[#17181D]/60 p-2.5 rounded-xl border border-[#2D3039]/50">
+                "{recentFeedbackRecord.adminFeedback}"
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveChatEmployeeId(activeEmployee.id);
+              setIsChatOpen(true);
+            }}
+            className="w-full sm:w-auto shrink-0 py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>{isAr ? 'رد بالمحادثة المباشرة' : 'Reply via Chat'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Hero Stats: Accrued Salary & Trial Countdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -325,75 +479,76 @@ export const EmployeePortalView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Action: Today's Task Report Submission */}
-      <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-5 sm:p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#E06D28] stroke-[1.75]" />
-            <h2 className="text-base font-bold text-[#FFFFFF]">{t.todayWorkReport}</h2>
-          </div>
-          <span className="text-xs text-[#9CA3AF]">{formatDate(currentDate, lang)}</span>
+      {/* Today's Work Report Submission Section */}
+      <div className="bg-[#1F2127] border border-[#2D3039] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-[#2D3039] pb-3">
+          <h2 className="text-sm font-bold text-[#FFFFFF] flex items-center gap-2">
+            <Send className="w-4 h-4 text-[#E06D28] stroke-[1.75]" />
+            <span>{t.todayWorkReport}</span>
+          </h2>
+          <span className="text-xs text-[#9CA3AF] font-mono">{formatDate(currentDate, lang)}</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Detailed Task Description */}
           <div>
+            <label className="block text-xs font-semibold text-[#F3F4F6] mb-1.5">
+              {isAr ? 'تفاصيل المهام المنجزة اليوم:' : 'Tasks Completed Today:'}
+            </label>
             <textarea
-              rows={4}
-              required
+              rows={3}
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}
               placeholder={t.todayWorkReportPlaceholder}
-              className="w-full bg-[#17181D] border border-[#2D3039] rounded-xl p-3.5 text-xs sm:text-sm text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] transition-colors leading-relaxed"
+              className="w-full bg-[#17181D] border border-[#2D3039] rounded-xl p-3 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] transition-colors leading-relaxed"
+              required
             />
           </div>
 
-          {/* Deliverable Video / File URL */}
+          {/* Video / Cloud Deliverable Link */}
           <div>
-            <label className="block text-xs font-semibold text-[#9CA3AF] mb-1">
-              {t.deliverableLink}
+            <label className="block text-xs font-semibold text-[#F3F4F6] mb-1.5 flex items-center gap-1.5">
+              <Video className="w-3.5 h-3.5 text-[#E06D28] stroke-[1.75]" />
+              <span>{t.deliverableLink}</span>
             </label>
-            <div className="relative">
-              <Video className="w-4 h-4 text-[#6B7280] absolute left-3 rtl:right-3 rtl:left-auto top-1/2 transform -translate-y-1/2 stroke-[1.75]" />
-              <input
-                type="url"
-                value={deliverableUrl}
-                onChange={(e) => setDeliverableUrl(e.target.value)}
-                placeholder="https://drive.google.com/... or https://loom.com/..."
-                className="w-full bg-[#17181D] border border-[#2D3039] rounded-xl pl-9 rtl:pr-9 rtl:pl-3 py-2 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28]"
-              />
-            </div>
+            <input
+              type="url"
+              value={deliverableUrl}
+              onChange={(e) => setDeliverableUrl(e.target.value)}
+              placeholder="https://drive.google.com/... or https://frame.io/..."
+              className="w-full bg-[#17181D] border border-[#2D3039] rounded-xl px-3 py-2 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#E06D28] transition-colors"
+            />
           </div>
 
-          {/* Image Attachments Upload Section */}
-          <div className="space-y-2.5 pt-1">
+          {/* Attach Screenshots / Images */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-[#F3F4F6] flex items-center gap-1.5">
+              <label className="text-xs font-semibold text-[#F3F4F6] flex items-center gap-1.5">
                 <ImageIcon className="w-3.5 h-3.5 text-[#E06D28] stroke-[1.75]" />
                 <span>{t.attachImages}</span>
               </label>
-              <span className="text-[11px] text-[#6B7280]">{t.imageUploadLimit}</span>
+              <span className="text-[10px] text-[#6B7280]">
+                {t.imageUploadLimit}
+              </span>
             </div>
 
-            {/* Drag & Drop Zone */}
+            {/* Drag & Drop Box */}
             <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                isDragging
-                  ? 'border-[#E06D28] bg-[#E06D28]/10 text-white'
-                  : 'border-[#2D3039] bg-[#17181D] hover:border-[#E06D28]/60 hover:bg-[#1C1E25]'
+              className={`border-2 border-dashed rounded-xl p-4 sm:p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                isDragging 
+                  ? 'border-[#E06D28] bg-[#E06D28]/10 scale-[0.99]' 
+                  : 'border-[#2D3039] hover:border-[#E06D28]/60 bg-[#17181D]/60 hover:bg-[#17181D]'
               }`}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                accept="image/*"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {

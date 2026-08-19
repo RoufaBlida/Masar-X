@@ -144,7 +144,21 @@ export const translations = {
     payoutDetailsLabel: 'بيانات المحفظة / الحساب',
     senderCountryLabel: 'البلد المرسل',
     recipientCountryLabel: 'البلد المستقبل',
-    deductionReasonLabel: 'سبب الخصم التفصيلي'
+    deductionReasonLabel: 'سبب الخصم التفصيلي',
+
+    // Notifications & Direct Chat
+    notificationsHub: 'مركز إشعارات وملاحظات الإدارة',
+    unreadNotifications: 'إشعارات جديدة',
+    markAllAsRead: 'تحديد الكل كمقروء',
+    noNotifications: 'لا توجد إشعارات جديدة حالياً',
+    managerNotesLabel: 'ملاحظات المشرف والتوجيهات',
+    chatDirectSupport: 'المحادثة والرسائل الخاصة',
+    chatWithAdmin: 'محادثة الإدارة والمشرف',
+    typeMessagePlaceholder: 'اكتب رسالتك للمشرف أو للإدارة هنا...',
+    sendChatMessage: 'إرسال الرسالة',
+    adminOnlineStatus: 'الإدارة متصلة ومستعدة للرد',
+    quickQuestions: 'عبارات سريعة:',
+    unreadMessages: 'رسائل غير مقروءة'
   },
   en: {
     appName: 'MASAR',
@@ -289,6 +303,20 @@ export const translations = {
     payoutDetailsLabel: 'Wallet / Account Details',
     senderCountryLabel: 'Sender Country',
     recipientCountryLabel: 'Receiver Country',
-    deductionReasonLabel: 'Detailed Deduction Reason'
+    deductionReasonLabel: 'Detailed Deduction Reason',
+
+    // Notifications & Direct Chat
+    notificationsHub: 'Manager Notes & Notifications Hub',
+    unreadNotifications: 'New Notifications',
+    markAllAsRead: 'Mark All as Read',
+    noNotifications: 'No new notifications right now',
+    managerNotesLabel: 'Manager Notes & Guidance',
+    chatDirectSupport: 'Direct Messages & Private Chat',
+    chatWithAdmin: 'Chat with Management / Supervisor',
+    typeMessagePlaceholder: 'Type your message to management here...',
+    sendChatMessage: 'Send Message',
+    adminOnlineStatus: 'Management is online & ready to reply',
+    quickQuestions: 'Quick prompts:',
+    unreadMessages: 'Unread Messages'
   }
 };

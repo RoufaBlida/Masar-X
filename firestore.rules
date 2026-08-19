@@ -52,5 +52,26 @@ service cloud.firestore {
         incoming().companyName is string && incoming().companyName.size() <= 200;
       allow delete: if false;
     }
+
+    // Direct chat messages collection
+    match /chat_messages/{messageId} {
+      allow read: if true;
+      allow create: if isValidId(messageId) &&
+        incoming().employeeId is string && incoming().employeeId.size() <= 128 &&
+        incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 5000;
+      allow update: if isValidId(messageId);
+      allow delete: if isValidId(messageId);
+    }
+
+    // Chat threads and archives collection
+    match /chat_threads/{threadId} {
+      allow read: if true;
+      allow create: if isValidId(threadId) &&
+        incoming().employeeId is string && incoming().employeeId.size() <= 128 &&
+        incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 200 &&
+        incoming().status in ['active', 'closed'];
+      allow update: if isValidId(threadId);
+      allow delete: if isValidId(threadId);
+    }
   }
 }

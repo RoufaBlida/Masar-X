@@ -12,6 +12,9 @@ import {
   AuthUser,
   AdminAccount,
   AdminPermissions,
+  ChatMessage,
+  ChatThread,
+  EmployeeNotification,
   DEFAULT_SUPERVISOR_PERMISSIONS,
   SUPER_ADMIN_PERMISSIONS
 } from '../types';
@@ -40,7 +43,13 @@ import {
   saveSettingsToCloud, 
   syncAllToCloud, 
   fetchAllFromCloud,
-  clearAllCloudData 
+  clearAllCloudData,
+  saveChatMessageToCloud,
+  saveChatThreadToCloud,
+  fetchAllChatThreadsFromCloud,
+  markChatMessagesAsReadInCloud,
+  fetchAllChatMessagesFromCloud,
+  subscribeToCloudUpdates
 } from '../firebase/firestoreService';
 
 interface AppContextType {
@@ -129,6 +138,26 @@ interface AppContextType {
   // Decision Modal State
   decisionModalEmployee: Employee | null;
   setDecisionModalEmployee: (emp: Employee | null) => void;
+
+  // Direct Private Chat Widget & Archiving System
+  chatMessages: ChatMessage[];
+  chatThreads: ChatThread[];
+  activeChatThreadId: string | null;
+  setActiveChatThreadId: (threadId: string | null) => void;
+  closeChatThread: (threadId: string) => Promise<void>;
+  startNewChatThread: (employeeId: string, title?: string) => Promise<string>;
+  sendChatMessage: (employeeId: string, text: string, attachmentUrl?: string, threadId?: string) => Promise<void>;
+  markChatMessagesAsRead: (employeeId: string, readerRole?: 'admin' | 'employee') => Promise<void>;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
+  activeChatEmployeeId: string | null;
+  setActiveChatEmployeeId: (empId: string | null) => void;
+  getUnreadChatCount: (empId?: string) => number;
+
+  // Employee Notifications & Manager Notes Hub
+  employeeNotifications: EmployeeNotification[];
+  markEmployeeNotificationAsRead: (id: string) => void;
+  markAllEmployeeNotificationsAsRead: (empId: string) => void;
 
   // Last action feedback banner / toast
   toastMessage: { text: string; type: 'success' | 'info' | 'warning' } | null;
@@ -258,6 +287,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return saved ? JSON.parse(saved) : initialNotifications;
   });
 
+  // Direct Chat State
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'chat_messages');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [chatThreads, setChatThreads] = useState<ChatThread[]>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'chat_threads');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [activeChatThreadId, setActiveChatThreadId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+  const [activeChatEmployeeId, setActiveChatEmployeeId] = useState<string | null>(null);
+
+  // Employee Notifications (Manager feedback, ratings, deductions, messages)
+  const [employeeNotifications, setEmployeeNotifications] = useState<EmployeeNotification[]>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'emp_notifications');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'chat_messages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'chat_threads', JSON.stringify(chatThreads));
+  }, [chatThreads]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'emp_notifications', JSON.stringify(employeeNotifications));
+  }, [employeeNotifications]);
+
   // Sync authUser to localStorage
   useEffect(() => {
     if (authUser) {
@@ -296,6 +359,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setSettings(prev => ({ ...prev, ...cloudData.settings }));
           }
 
+          // Fetch chat messages and threads
+          const [cloudMessages, cloudThreads] = await Promise.all([
+            fetchAllChatMessagesFromCloud(),
+            fetchAllChatThreadsFromCloud()
+          ]);
+          if (cloudMessages.length > 0) {
+            setChatMessages(cloudMessages);
+          }
+          if (cloudThreads.length > 0) {
+            setChatThreads(cloudThreads);
+          }
+
           setLastSyncedTime(new Date().toLocaleTimeString('sv-SE'));
         }
       } catch (err) {
@@ -304,8 +379,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     initializeCloud();
+
+    // Subscribe to live cloud updates
+    const unsubscribe = subscribeToCloudUpdates({
+      onEmployeesChange: (cloudEmps) => {
+        if (cloudEmps.length > 0) setEmployees(cloudEmps);
+      },
+      onAttendanceChange: (cloudRecords) => {
+        if (cloudRecords.length > 0) setAttendanceRecords(cloudRecords);
+      },
+      onSettingsChange: (cloudSettings) => {
+        if (cloudSettings) setSettings(prev => ({ ...prev, ...cloudSettings }));
+      },
+      onChatMessagesChange: (cloudMsgs) => {
+        if (cloudMsgs) setChatMessages(cloudMsgs);
+      },
+      onChatThreadsChange: (cloudThr) => {
+        if (cloudThr) setChatThreads(cloudThr);
+      }
+    });
+
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, []);
 
@@ -904,6 +1000,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (targetRecord!) {
       saveAttendanceRecordToCloud(targetRecord).catch(err => console.warn('Firestore eval save:', err));
     }
+
+    // Create / update explicit employee notification for manager feedback & rating
+    if (evalData.feedback || evalData.rating !== undefined) {
+      const evalNotif: EmployeeNotification = {
+        id: `notif-eval-${empId}-${dateStr}`,
+        employeeId: empId,
+        type: evalData.feedback ? 'manager_feedback' : 'rating',
+        title: evalData.feedback 
+          ? (isAr ? 'ملاحظة وتوجيه جديد من المشرف 📝' : 'New Feedback from Supervisor 📝')
+          : (isAr ? 'تقييم جديد لإنجازك اليوم ⭐' : 'New Performance Rating ⭐'),
+        message: evalData.feedback || (isAr ? `حصلت على تقييم ${evalData.rating} من 5 نجوم لليوم` : `Rated ${evalData.rating}/5 stars today`),
+        date: dateStr,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        meta: {
+          rating: evalData.rating,
+          ratingSpeed: evalData.speed,
+          feedbackText: evalData.feedback
+        }
+      };
+
+      setEmployeeNotifications(prev => [
+        evalNotif,
+        ...prev.filter(n => !(n.employeeId === empId && n.date === dateStr && (n.type === 'manager_feedback' || n.type === 'rating')))
+      ]);
+    }
+
     showToast(t.evaluationSaved, 'success');
   };
 
@@ -1118,6 +1241,198 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('تمت استعادة البيانات الافتراضية بنجاح', 'info');
   };
 
+  // Direct Chat & Notifications Handlers
+  const startNewChatThread = async (employeeId: string, title?: string): Promise<string> => {
+    const threadId = `thread-${employeeId}-${Date.now()}`;
+    const emp = employees.find(e => e.id === employeeId);
+    const defaultTitle = isAr 
+      ? `محادثة #${chatThreads.filter(t => t.employeeId === employeeId).length + 1} (${new Date().toLocaleDateString('ar-SA')})`
+      : `Thread #${chatThreads.filter(t => t.employeeId === employeeId).length + 1} (${new Date().toLocaleDateString()})`;
+    
+    const newThread: ChatThread = {
+      id: threadId,
+      employeeId,
+      title: title?.trim() || defaultTitle,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+
+    setChatThreads(prev => [newThread, ...prev]);
+    setActiveChatThreadId(threadId);
+    saveChatThreadToCloud(newThread).catch(err => console.warn('Firestore thread save:', err));
+    soundEffects.play('notification');
+    return threadId;
+  };
+
+  const closeChatThread = async (threadId: string) => {
+    const closedTime = new Date().toISOString();
+    const closerName = authUser?.name || (isAr ? 'الإدارة' : 'Management');
+    const closerId = authUser?.id || 'admin';
+
+    setChatThreads(prev => prev.map(t => t.id === threadId ? {
+      ...t,
+      status: 'closed',
+      closedAt: closedTime,
+      closedBy: closerId,
+      closedByName: closerName
+    } : t));
+
+    const target = chatThreads.find(t => t.id === threadId);
+    if (target) {
+      const closedObj: ChatThread = {
+        ...target,
+        status: 'closed',
+        closedAt: closedTime,
+        closedBy: closerId,
+        closedByName: closerName
+      };
+      saveChatThreadToCloud(closedObj).catch(err => console.warn('Firestore thread save:', err));
+    }
+    soundEffects.play('warning');
+    showToast(isAr ? 'تم إغلاق المحادثة وقفل الكتابة وأرشفتها بنجاح' : 'Conversation closed and archived', 'info');
+  };
+
+  const sendChatMessage = async (employeeId: string, text: string, attachmentUrl?: string, threadId?: string) => {
+    if (!text.trim()) return;
+    const isSenderAdmin = authUser?.role === 'admin';
+    const senderName = isSenderAdmin 
+      ? (authUser?.name || (isAr ? 'الإدارة' : 'Management'))
+      : (employees.find(e => e.id === employeeId)?.name || 'الموظف');
+    const senderId = authUser?.id || (isSenderAdmin ? 'admin-main' : employeeId);
+
+    // Find or create active thread
+    let currentThreadId = threadId || activeChatThreadId;
+    let targetThread = currentThreadId ? chatThreads.find(t => t.id === currentThreadId) : undefined;
+
+    if (!targetThread || targetThread.employeeId !== employeeId || targetThread.status === 'closed') {
+      // Find latest active thread for this employee
+      targetThread = chatThreads.find(t => t.employeeId === employeeId && t.status === 'active');
+      if (!targetThread) {
+        // Automatically create a new thread
+        const newThreadId = `thread-${employeeId}-${Date.now()}`;
+        const defaultTitle = text.trim().slice(0, 30) || (isAr ? 'محادثة مباشرة' : 'Direct Chat');
+        const newThread: ChatThread = {
+          id: newThreadId,
+          employeeId,
+          title: defaultTitle,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          lastMessageText: text.trim().slice(0, 45),
+          lastMessageTimestamp: new Date().toISOString()
+        };
+        currentThreadId = newThreadId;
+        setChatThreads(prev => [newThread, ...prev]);
+        saveChatThreadToCloud(newThread).catch(err => console.warn('Firestore thread save:', err));
+      } else {
+        currentThreadId = targetThread.id;
+        const updated = {
+          ...targetThread,
+          lastMessageText: text.trim().slice(0, 45),
+          lastMessageTimestamp: new Date().toISOString()
+        };
+        setChatThreads(prev => prev.map(t => t.id === updated.id ? updated : t));
+        saveChatThreadToCloud(updated).catch(err => console.warn('Firestore thread save:', err));
+      }
+    } else {
+      const updated = {
+        ...targetThread,
+        lastMessageText: text.trim().slice(0, 45),
+        lastMessageTimestamp: new Date().toISOString()
+      };
+      setChatThreads(prev => prev.map(t => t.id === updated.id ? updated : t));
+      saveChatThreadToCloud(updated).catch(err => console.warn('Firestore thread save:', err));
+    }
+
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      threadId: currentThreadId || undefined,
+      employeeId,
+      senderRole: isSenderAdmin ? 'admin' : 'employee',
+      senderName,
+      senderId,
+      text: text.trim(),
+      attachmentUrl: attachmentUrl?.trim() || undefined,
+      timestamp: new Date().toISOString(),
+      readByAdmin: isSenderAdmin,
+      readByEmployee: !isSenderAdmin
+    };
+
+    setChatMessages(prev => [...prev, newMsg]);
+    soundEffects.play('send');
+
+    // Save to Firestore
+    saveChatMessageToCloud(newMsg).catch(err => console.warn('Firestore chat save:', err));
+
+    // If sent by admin, create notification for the employee
+    if (isSenderAdmin) {
+      const empNotif: EmployeeNotification = {
+        id: `notif-chat-${Date.now()}`,
+        employeeId,
+        type: 'chat_message',
+        title: isAr ? 'رسالة جديدة من الإدارة 💬' : 'New Message from Management 💬',
+        message: text.trim().slice(0, 100),
+        date: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        meta: {
+          chatSenderName: senderName
+        }
+      };
+      setEmployeeNotifications(prev => [empNotif, ...prev]);
+    }
+  };
+
+  const markChatMessagesAsRead = async (employeeId: string, readerRole?: 'admin' | 'employee') => {
+    const role = readerRole || (authUser?.role === 'admin' ? 'admin' : 'employee');
+    const unreadIds: string[] = [];
+    const nowIso = new Date().toISOString();
+
+    setChatMessages(prev =>
+      prev.map(msg => {
+        if (msg.employeeId === employeeId) {
+          if (role === 'admin' && !msg.readByAdmin) {
+            unreadIds.push(msg.id);
+            return { ...msg, readByAdmin: true, readByAdminAt: nowIso };
+          } else if (role === 'employee' && !msg.readByEmployee) {
+            unreadIds.push(msg.id);
+            return { ...msg, readByEmployee: true, readByEmployeeAt: nowIso };
+          }
+        }
+        return msg;
+      })
+    );
+
+    if (unreadIds.length > 0) {
+      markChatMessagesAsReadInCloud(unreadIds, role).catch(err => console.warn('Firestore mark read:', err));
+    }
+  };
+
+  const getUnreadChatCount = (empId?: string): number => {
+    const isAdmin = authUser?.role === 'admin';
+    if (empId) {
+      return chatMessages.filter(
+        m => m.employeeId === empId && (isAdmin ? !m.readByAdmin : !m.readByEmployee)
+      ).length;
+    }
+    if (isAdmin) {
+      return chatMessages.filter(m => !m.readByAdmin).length;
+    }
+    const myEmpId = authUser?.employeeId || currentEmployeeId;
+    return myEmpId ? chatMessages.filter(m => m.employeeId === myEmpId && !m.readByEmployee).length : 0;
+  };
+
+  const markEmployeeNotificationAsRead = (id: string) => {
+    setEmployeeNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const markAllEmployeeNotificationsAsRead = (empId: string) => {
+    setEmployeeNotifications(prev =>
+      prev.map(n => (n.employeeId === empId ? { ...n, isRead: true } : n))
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1175,6 +1490,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSelectedEmployeeForDetail,
         decisionModalEmployee,
         setDecisionModalEmployee,
+        chatMessages,
+        chatThreads,
+        activeChatThreadId,
+        setActiveChatThreadId,
+        closeChatThread,
+        startNewChatThread,
+        sendChatMessage,
+        markChatMessagesAsRead,
+        isChatOpen,
+        setIsChatOpen,
+        activeChatEmployeeId,
+        setActiveChatEmployeeId,
+        getUnreadChatCount,
+        employeeNotifications,
+        markEmployeeNotificationAsRead,
+        markAllEmployeeNotificationsAsRead,
         toastMessage,
         showToast
       }}

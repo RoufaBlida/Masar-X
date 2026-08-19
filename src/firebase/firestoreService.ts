@@ -8,11 +8,97 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './config';
-import { Employee, AttendanceRecord, AppSettings } from '../types';
+import { Employee, AttendanceRecord, AppSettings, ChatMessage, ChatThread } from '../types';
 
 const EMPLOYEES_COLLECTION = 'employees';
 const ATTENDANCE_COLLECTION = 'attendance_records';
 const SETTINGS_COLLECTION = 'app_settings';
+const CHAT_COLLECTION = 'chat_messages';
+const CHAT_THREADS_COLLECTION = 'chat_threads';
+
+/**
+ * Save a direct chat message in Firestore
+ */
+export async function saveChatMessageToCloud(message: ChatMessage): Promise<void> {
+  const path = `${CHAT_COLLECTION}/${message.id}`;
+  try {
+    const docRef = doc(db, CHAT_COLLECTION, message.id);
+    await setDoc(docRef, message, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Save or update a chat thread (session/archive) in Firestore
+ */
+export async function saveChatThreadToCloud(thread: ChatThread): Promise<void> {
+  const path = `${CHAT_THREADS_COLLECTION}/${thread.id}`;
+  try {
+    const docRef = doc(db, CHAT_THREADS_COLLECTION, thread.id);
+    await setDoc(docRef, thread, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Fetch all chat threads from Firestore
+ */
+export async function fetchAllChatThreadsFromCloud(): Promise<ChatThread[]> {
+  try {
+    const snap = await getDocs(collection(db, CHAT_THREADS_COLLECTION));
+    const threads: ChatThread[] = [];
+    snap.forEach(d => {
+      threads.push(d.data() as ChatThread);
+    });
+    return threads.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch (error) {
+    console.warn('Error fetching chat threads from cloud:', error);
+    return [];
+  }
+}
+
+/**
+ * Mark messages as read in Firestore with exact read timestamps
+ */
+export async function markChatMessagesAsReadInCloud(
+  messageIds: string[], 
+  readerRole: 'admin' | 'employee'
+): Promise<void> {
+  if (messageIds.length === 0) return;
+  const nowIso = new Date().toISOString();
+  try {
+    const batch = writeBatch(db);
+    for (const msgId of messageIds) {
+      const docRef = doc(db, CHAT_COLLECTION, msgId);
+      const updateField = readerRole === 'admin' 
+        ? { readByAdmin: true, readByAdminAt: nowIso } 
+        : { readByEmployee: true, readByEmployeeAt: nowIso };
+      batch.set(docRef, updateField, { merge: true });
+    }
+    await batch.commit();
+  } catch (error) {
+    console.warn('Error marking messages as read in cloud:', error);
+  }
+}
+
+/**
+ * Fetch all chat messages from Firestore
+ */
+export async function fetchAllChatMessagesFromCloud(): Promise<ChatMessage[]> {
+  try {
+    const snap = await getDocs(collection(db, CHAT_COLLECTION));
+    const messages: ChatMessage[] = [];
+    snap.forEach(d => {
+      messages.push(d.data() as ChatMessage);
+    });
+    return messages.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  } catch (error) {
+    console.warn('Error fetching chat messages from cloud:', error);
+    return [];
+  }
+}
 
 /**
  * Save or update a single employee in Firestore
@@ -210,6 +296,8 @@ export function subscribeToCloudUpdates(callbacks: {
   onEmployeesChange?: (employees: Employee[]) => void;
   onAttendanceChange?: (records: AttendanceRecord[]) => void;
   onSettingsChange?: (settings: AppSettings) => void;
+  onChatMessagesChange?: (messages: ChatMessage[]) => void;
+  onChatThreadsChange?: (threads: ChatThread[]) => void;
 }) {
   const unsubEmployees = onSnapshot(collection(db, EMPLOYEES_COLLECTION), (snap) => {
     if (callbacks.onEmployeesChange) {
@@ -243,9 +331,31 @@ export function subscribeToCloudUpdates(callbacks: {
     handleFirestoreError(err, OperationType.GET, SETTINGS_COLLECTION);
   });
 
+  const unsubChat = onSnapshot(collection(db, CHAT_COLLECTION), (snap) => {
+    if (callbacks.onChatMessagesChange) {
+      const msgs: ChatMessage[] = [];
+      snap.forEach(d => msgs.push(d.data() as ChatMessage));
+      callbacks.onChatMessagesChange(msgs.sort((a, b) => a.timestamp.localeCompare(b.timestamp)));
+    }
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, CHAT_COLLECTION);
+  });
+
+  const unsubThreads = onSnapshot(collection(db, CHAT_THREADS_COLLECTION), (snap) => {
+    if (callbacks.onChatThreadsChange) {
+      const threads: ChatThread[] = [];
+      snap.forEach(d => threads.push(d.data() as ChatThread));
+      callbacks.onChatThreadsChange(threads.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    }
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, CHAT_THREADS_COLLECTION);
+  });
+
   return () => {
     unsubEmployees();
     unsubAttendance();
     unsubSettings();
+    unsubChat();
+    unsubThreads();
   };
 }

@@ -15,6 +15,7 @@ import { DecisionActionModal } from './components/DecisionActionModal';
 import { WeeklySummaryModal } from './components/WeeklySummaryModal';
 import { VercelSyncModal } from './components/VercelSyncModal';
 import { LoginView } from './components/LoginView';
+import { FloatingChatWidget } from './components/FloatingChatWidget';
 import { Employee } from './types';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { formatDate } from './utils/calculations';
@@ -110,6 +111,9 @@ const MainContent: React.FC = () => {
       />
 
       <VercelSyncModal />
+
+      {/* Floating Support/Private Chat Widget */}
+      <FloatingChatWidget />
     </div>
   );
 };

@@ -127,6 +127,37 @@ class SoundManager {
       // ignore
     }
   }
+
+  // Quick crisp pop sound for message sent
+  public playSend() {
+    if (!this.isEnabled) return;
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(900, now + 0.1);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Generic play method router
+  public play(type: 'notification' | 'success' | 'warning' | 'send') {
+    if (type === 'notification') this.playNotification();
+    else if (type === 'success') this.playSuccess();
+    else if (type === 'warning') this.playWarning();
+    else if (type === 'send') this.playSend();
+  }
 }
 
 export const soundEffects = new SoundManager();
