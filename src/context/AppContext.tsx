@@ -49,7 +49,7 @@ interface AppContextType {
   registerAdmin: (name: string, email: string, password?: string, companyName?: string) => Promise<{ success: boolean; error?: string }>;
   loginAsAdmin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
-  loginAsEmployee: (accessCode: string) => Promise<{ success: boolean; error?: string; employee?: Employee }>;
+  loginAsEmployee: (accessCode: string, password?: string) => Promise<{ success: boolean; error?: string; employee?: Employee }>;
   logout: () => void;
   clearAllLocalData: () => void;
   addAuthorizedAdmin: (admin: Omit<AdminAccount, 'id' | 'createdAt'>) => void;
@@ -609,10 +609,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(isAr ? (updated ? 'تم تفعيل صوت الإشعارات 🔔' : 'تم كتم صوت الإشعارات 🔕') : (updated ? 'Sound enabled' : 'Sound muted'), 'info');
   };
 
-  const loginAsEmployee = async (accessCode: string): Promise<{ success: boolean; error?: string; employee?: Employee }> => {
+  const loginAsEmployee = async (accessCode: string, password?: string): Promise<{ success: boolean; error?: string; employee?: Employee }> => {
     const code = accessCode.trim().toUpperCase();
+    const enteredPass = (password || '').trim();
+
     if (!code) {
       return { success: false, error: isAr ? 'يرجى إدخال كود الموظف' : 'Please enter employee access code' };
+    }
+
+    if (!enteredPass) {
+      return { success: false, error: isAr ? 'يرجى إدخال كلمة المرور المخصصة لحسابك' : 'Please enter your password' };
     }
 
     // Try finding employee in current state or fallback cloud list
@@ -631,20 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
-    if (targetEmp) {
-      const userObj: AuthUser = {
-        id: targetEmp.id,
-        name: targetEmp.name,
-        email: targetEmp.email,
-        role: 'employee',
-        employeeId: targetEmp.id
-      };
-      setAuthUser(userObj);
-      setCurrentEmployeeId(targetEmp.id);
-      setIsEmployeePortal(true);
-      showToast(isAr ? `مرحباً بك يا ${targetEmp.name} في بوابة إنجازك اليومي` : `Welcome ${targetEmp.name}!`, 'success');
-      return { success: true, employee: targetEmp };
-    } else {
+    if (!targetEmp) {
       return { 
         success: false, 
         error: isAr 
@@ -652,6 +645,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           : 'Invalid access code. Please check with administrator.' 
       };
     }
+
+    if (targetEmp.status === 'terminated') {
+      return {
+        success: false,
+        error: isAr ? 'تم إنهاء هذا الحساب من قبل الإدارة' : 'This account has been terminated'
+      };
+    }
+
+    // Verify Password
+    const expectedPassword = (targetEmp.password || `emp${targetEmp.accessCode.replace(/\D/g, '') || '123'}`).trim();
+    if (enteredPass !== expectedPassword) {
+      return {
+        success: false,
+        error: isAr ? 'كلمة المرور غير صحيحة. يرجى التأكد من كلمة المرور المسلمة لك من الإدارة.' : 'Incorrect password'
+      };
+    }
+
+    const userObj: AuthUser = {
+      id: targetEmp.id,
+      name: targetEmp.name,
+      email: targetEmp.email,
+      role: 'employee',
+      employeeId: targetEmp.id
+    };
+    setAuthUser(userObj);
+    setCurrentEmployeeId(targetEmp.id);
+    setIsEmployeePortal(true);
+    showToast(isAr ? `مرحباً بك يا ${targetEmp.name} في بوابة إنجازك اليومي` : `Welcome ${targetEmp.name}!`, 'success');
+    return { success: true, employee: targetEmp };
   };
 
   const logout = () => {
@@ -723,10 +745,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addEmployee = (empData: Omit<Employee, 'id' | 'createdAt' | 'accessCode'>): Employee => {
     const newId = `emp-${Date.now()}`;
     const code = generateAccessCode();
+    const defaultPassword = `emp${code.replace(/\D/g, '') || '123'}`;
     const newEmp: Employee = {
       ...empData,
       id: newId,
       accessCode: code,
+      password: (empData.password && empData.password.trim()) ? empData.password.trim() : defaultPassword,
       createdAt: new Date().toISOString().split('T')[0],
       status: 'active'
     };
@@ -736,8 +760,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     showToast(
       isAr 
-        ? `تمت إضافة الموظف ${newEmp.name} بنجاح! كود الدخول: ${newEmp.accessCode}` 
-        : `Employee added! Code: ${newEmp.accessCode}`,
+        ? `تمت إضافة الموظف ${newEmp.name} بنجاح! كود الدخول: ${newEmp.accessCode} | كلمة المرور: ${newEmp.password}` 
+        : `Employee added! Code: ${newEmp.accessCode} | Password: ${newEmp.password}`,
       'success'
     );
     return newEmp;

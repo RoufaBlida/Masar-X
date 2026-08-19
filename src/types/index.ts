@@ -46,6 +46,7 @@ export interface Employee {
   fixedDeductionRate?: number; // USD per day if fixed_amount
   customWeekendDays?: number[]; // [5, 6] for Fri/Sat
   accessCode: string; // e.g. EMP-2401 for employee login
+  password?: string; // Custom or generated employee portal password
   status: 'active' | 'graduated' | 'terminated';
   phone?: string;
   notes?: string;

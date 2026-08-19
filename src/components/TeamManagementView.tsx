@@ -24,7 +24,10 @@ import {
   Trash2,
   Calendar,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  KeyRound,
+  Copy,
+  Check
 } from 'lucide-react';
 import { calculateAccruedSalary, getTrialProgress, formatDate } from '../utils/calculations';
 import { Employee, RoleType, ContractType } from '../types';
@@ -61,6 +64,16 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [payslipEmployee, setPayslipEmployee] = useState<Employee | null>(null);
   const [contractFilter, setContractFilter] = useState<string>('all');
+  const [copiedEmpId, setCopiedEmpId] = useState<string | null>(null);
+
+  const handleCopyCredentials = (emp: Employee, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const pass = emp.password || `emp${emp.accessCode.replace(/\D/g, '') || '123'}`;
+    const text = `🔹 بيانات الدخول لبوابة مسار:\n👤 الاسم: ${emp.name}\n🔑 الكود: ${emp.accessCode}\n🔒 كلمة المرور: ${pass}\n🌐 الرابط: ${window.location.origin}`;
+    navigator.clipboard.writeText(text);
+    setCopiedEmpId(emp.id);
+    setTimeout(() => setCopiedEmpId(null), 2500);
+  };
 
   const activeEmployees = employees.filter(e => e.status !== 'terminated');
   const archivedEmployees = employees.filter(e => e.status === 'terminated');
@@ -238,10 +251,29 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onOpenAd
                             <p className="text-[11px] text-[#9CA3AF] mt-0.5 font-medium">
                               {emp.customRoleName || emp.role}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <span className="text-[10px] font-mono bg-[#17181D] text-[#FB923C] px-2 py-0.5 rounded border border-[#2D3039]">
                                 {emp.accessCode}
                               </span>
+
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyCredentials(emp, e)}
+                                className="text-[10px] bg-[#17181D] hover:bg-[#262831] text-[#9CA3AF] hover:text-[#FB923C] px-1.5 py-0.5 rounded border border-[#2D3039] flex items-center gap-1 transition-colors cursor-pointer"
+                                title={isAr ? 'نسخ بيانات تسجيل الدخول (الكود + كلمة المرور)' : 'Copy Login Credentials'}
+                              >
+                                {copiedEmpId === emp.id ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-[#10B981]" />
+                                    <span className="text-[#10B981] font-semibold">{isAr ? 'تم!' : 'Copied!'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3" />
+                                    <span>{isAr ? 'نسخ الدخول' : 'Copy Login'}</span>
+                                  </>
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>

@@ -13,7 +13,9 @@ import {
   AlertCircle, 
   Globe2, 
   Database,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
@@ -40,6 +42,8 @@ export const LoginView: React.FC = () => {
 
   // Employee Form State
   const [employeeCode, setEmployeeCode] = useState('');
+  const [employeePassword, setEmployeePassword] = useState('');
+  const [showEmployeePassword, setShowEmployeePassword] = useState(false);
   const [isEmployeeLoading, setIsEmployeeLoading] = useState(false);
   const [employeeError, setEmployeeError] = useState<string | null>(null);
 
@@ -71,12 +75,26 @@ export const LoginView: React.FC = () => {
   const handleEmployeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmployeeError(null);
+
+    const cleanCode = employeeCode.trim();
+    const cleanPass = employeePassword.trim();
+
+    if (!cleanCode) {
+      setEmployeeError(isAr ? 'يرجى إدخال كود الموظف' : 'Please enter employee access code');
+      return;
+    }
+
+    if (!cleanPass) {
+      setEmployeeError(isAr ? 'يرجى إدخال كلمة المرور المخصصة لك' : 'Please enter your password');
+      return;
+    }
+
     setIsEmployeeLoading(true);
 
-    const res = await loginAsEmployee(employeeCode);
+    const res = await loginAsEmployee(cleanCode, cleanPass);
     setIsEmployeeLoading(false);
     if (!res.success) {
-      setEmployeeError(res.error || (isAr ? 'كود الموظف غير صحيح أو غير مسجل' : 'Invalid access code'));
+      setEmployeeError(res.error || (isAr ? 'كود الموظف أو كلمة المرور غير صحيحة' : 'Invalid access credentials'));
     }
   };
 
@@ -259,8 +277,8 @@ export const LoginView: React.FC = () => {
                   </h2>
                   <p className="text-xs text-[#9CA3AF] mt-1">
                     {isAr
-                      ? 'أدخل كود الدخول الخاص بك المسلم لك من الإدارة لتسجيل إنجازك اليومي وعرض قسيمة راتبك.'
-                      : 'Enter your assigned employee access code to submit task reports and view payslips.'}
+                      ? 'أدخل كود الدخول وكلمة المرور الخاصة بك المسلّمين لك من الإدارة لتسجيل إنجازك اليومي وعرض قسيمة راتبك.'
+                      : 'Enter your assigned employee access code and password to submit task reports and view payslips.'}
                   </p>
                 </div>
 
@@ -271,9 +289,10 @@ export const LoginView: React.FC = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleEmployeeSubmit} className="space-y-4">
+                <form onSubmit={handleEmployeeSubmit} className="space-y-3.5">
+                  {/* Access Code */}
                   <div>
-                    <label className="block text-xs font-bold text-[#E2E8F0] mb-1.5">
+                    <label className="block text-xs font-bold text-[#E2E8F0] mb-1">
                       {isAr ? 'كود الموظف السري (Access Code)' : 'Employee Access Code'}
                     </label>
                     <div className="relative">
@@ -284,15 +303,41 @@ export const LoginView: React.FC = () => {
                         value={employeeCode}
                         onChange={(e) => setEmployeeCode(e.target.value)}
                         placeholder="EMP-101"
-                        className="w-full bg-[#17181D] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-2.5 ps-9 pe-3 text-xs font-mono font-bold text-[#FB923C] placeholder-[#6B7280] focus:outline-none uppercase tracking-wider transition-colors"
+                        className="w-full bg-[#17181D] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-2 ps-9 pe-3 text-xs font-mono font-bold text-[#FB923C] placeholder-[#6B7280] focus:outline-none uppercase tracking-wider transition-colors"
                       />
+                    </div>
+                  </div>
+
+                  {/* Employee Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#E2E8F0] mb-1">
+                      {isAr ? 'كلمة المرور الخاصة بالموظف' : 'Employee Password'}
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-[#9CA3AF] absolute top-1/2 -translate-y-1/2 start-3" />
+                      <input
+                        type={showEmployeePassword ? 'text' : 'password'}
+                        required
+                        value={employeePassword}
+                        onChange={(e) => setEmployeePassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-[#17181D] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-2 ps-9 pe-10 text-xs text-white placeholder-[#6B7280] focus:outline-none transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmployeePassword(!showEmployeePassword)}
+                        className="absolute top-1/2 -translate-y-1/2 end-2.5 p-1 text-[#9CA3AF] hover:text-white transition-colors cursor-pointer"
+                        title={showEmployeePassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide') : (isAr ? 'إظهار كلمة المرور' : 'Show')}
+                      >
+                        {showEmployeePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
                   <div className="p-3 rounded-xl bg-[#17181D] border border-[#2D3039] text-[11px] text-[#9CA3AF] space-y-1">
                     <div className="flex items-center gap-1.5 text-[#E2E8F0] font-semibold">
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                      <span>{isAr ? 'مهام بوابة الموظف:' : 'Employee features:'}</span>
+                      <span>{isAr ? 'مهام وميزات بوابة الموظف:' : 'Employee features:'}</span>
                     </div>
                     <ul className="list-disc list-inside ps-1 space-y-0.5 text-[#9CA3AF]">
                       <li>{isAr ? 'رفع تقارير الإنجاز وروابط الفيديو ولقطات الشاشة' : 'Submit task reports & video deliverables'}</li>
@@ -304,9 +349,9 @@ export const LoginView: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isEmployeeLoading}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#E06D28] hover:bg-[#F07935] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-[#E06D28]/30 transition-all cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#E06D28] hover:bg-[#F07935] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-[#E06D28]/30 transition-all cursor-pointer mt-2"
                   >
-                    <span>{isEmployeeLoading ? (isAr ? 'جاري التحقق من الكود...' : 'Verifying...') : (isAr ? 'تسجيل الدخول لبوابتي' : 'Login to My Portal')}</span>
+                    <span>{isEmployeeLoading ? (isAr ? 'جاري التحقق...' : 'Verifying...') : (isAr ? 'تسجيل الدخول لبوابتي' : 'Login to My Portal')}</span>
                     <ArrowIcon className="w-4 h-4" />
                   </button>
                 </form>

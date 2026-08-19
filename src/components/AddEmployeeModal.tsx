@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, UserPlus, DollarSign, Calendar, Mail, Phone, Briefcase, Sparkles, CreditCard, Globe2 } from 'lucide-react';
+import { 
+  X, 
+  UserPlus, 
+  DollarSign, 
+  Calendar, 
+  Mail, 
+  Phone, 
+  Briefcase, 
+  Sparkles, 
+  CreditCard, 
+  Globe2,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Copy,
+  Check
+} from 'lucide-react';
 import { RoleType, DeductionType, ContractType, PayoutMethod } from '../types';
 
 interface AddEmployeeModalProps {
@@ -37,6 +55,11 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
   const [notes, setNotes] = useState('');
   const [softwareTools, setSoftwareTools] = useState('Premiere Pro, After Effects');
 
+  // Employee Custom Password
+  const generateRandomPassword = () => `emp${Math.floor(1000 + Math.random() * 9000)}`;
+  const [password, setPassword] = useState(generateRandomPassword());
+  const [showPassword, setShowPassword] = useState(false);
+
   // Payout information
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('usdt_trc20');
   const [payoutDetails, setPayoutDetails] = useState('');
@@ -68,6 +91,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim() || undefined,
+      password: password.trim() || generateRandomPassword(),
       role,
       avatarColor,
       avatarInitial: initials,
@@ -248,6 +272,52 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
                 />
               ))}
             </div>
+          </div>
+
+          {/* Employee Access Password Configuration */}
+          <div className="p-3.5 rounded-xl bg-[#17181D] border border-[#2D3039] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[#FB923C] flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-[#E06D28]" />
+                <span>{isAr ? 'كلمة المرور لبوابة الموظف (Password)' : 'Employee Portal Password'}</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPassword(generateRandomPassword())}
+                className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#FB923C] flex items-center gap-1 transition-colors cursor-pointer"
+                title={isAr ? 'توليد كلمة سر عشوائية جديدة' : 'Generate random password'}
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>{isAr ? 'توليد تلقائي' : 'Generate'}</span>
+              </button>
+            </div>
+
+            <div className="relative">
+              <Lock className="w-4 h-4 text-[#9CA3AF] absolute top-1/2 -translate-y-1/2 start-3" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={isAr ? 'مثال: emp4091 أو كلمة سر خاصة' : 'e.g. emp4091 or custom'}
+                className="w-full bg-[#1F2127] border border-[#2D3039] focus:border-[#E06D28] rounded-xl py-2 ps-9 pe-10 text-xs font-mono font-bold text-[#FFFFFF] placeholder-[#6B7280] focus:outline-none transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute top-1/2 -translate-y-1/2 end-2.5 p-1 text-[#9CA3AF] hover:text-white transition-colors cursor-pointer"
+                title={showPassword ? (isAr ? 'إخفاء' : 'Hide') : (isAr ? 'إظهار' : 'Show')}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <p className="text-[11px] text-[#9CA3AF]">
+              {isAr 
+                ? '💡 يُسلّم هذا الرمز السري مع كود الموظف للمرشح ليتمكن من تسجيل الدخول لبوابته اليومية.' 
+                : '💡 Share this password along with the access code for portal login.'}
+            </p>
           </div>
 
           {/* Software & Tools */}

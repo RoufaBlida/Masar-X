@@ -99,6 +99,8 @@ export const translations = {
     deductionFixed: 'مبلغ خصم ثابت لكل يوم غياب',
     fixedDeductionAmount: 'مبلغ الخصم لليوم ($)',
     accessCode: 'كود الدخول المخصص',
+    employeePassword: 'كلمة مرور الموظف',
+    employeePasswordPlaceholder: 'مثال: emp@401 أو كلمة مخصصة',
     autoSaved: 'تم الحفظ تلقائياً',
     saving: 'جاري الحفظ...',
     
@@ -242,6 +244,8 @@ export const translations = {
     deductionFixed: 'Fixed Deduction per Absent Day',
     fixedDeductionAmount: 'Fixed Daily Deduction ($)',
     accessCode: 'Assigned Access Code',
+    employeePassword: 'Employee Portal Password',
+    employeePasswordPlaceholder: 'e.g. emp@401 or custom password',
     autoSaved: 'Auto-saved',
     saving: 'Saving...',
     

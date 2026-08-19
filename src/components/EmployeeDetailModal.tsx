@@ -16,13 +16,18 @@ import {
   UserCheck,
   Image as ImageIcon,
   Eye,
+  EyeOff,
   FileText,
   CreditCard,
   Globe2,
   Printer,
   Download,
   CalendarCheck2,
-  XCircle
+  XCircle,
+  KeyRound,
+  Lock,
+  Copy,
+  Check
 } from 'lucide-react';
 import { calculateAccruedSalary, getTrialProgress, formatDate } from '../utils/calculations';
 import { getPayoutMethodLabel } from '../utils/payslipUtils';
@@ -55,6 +60,10 @@ export const EmployeeDetailModal: React.FC = () => {
   // Payslip Modal state
   const [isPayslipOpen, setIsPayslipOpen] = useState(false);
 
+  // Credentials visibility and copy state
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
   const handleOpenLightbox = (imgs: string[], index = 0) => {
     setLightboxImages(imgs);
     setLightboxIndex(index);
@@ -62,6 +71,15 @@ export const EmployeeDetailModal: React.FC = () => {
   };
 
   if (!emp) return null;
+
+  const employeePassword = emp.password || `emp${emp.accessCode.replace(/\D/g, '') || '123'}`;
+
+  const handleCopyCredentials = () => {
+    const text = `🔹 بيانات الدخول لبوابة مسار:\n👤 الاسم: ${emp.name}\n🔑 الكود: ${emp.accessCode}\n🔒 كلمة المرور: ${employeePassword}\n🌐 الرابط: ${window.location.origin}`;
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
 
   const stats = calculateAccruedSalary(emp, attendanceRecords, currentDate, settings);
   const trialProg = getTrialProgress(emp, currentDate);
@@ -232,6 +250,52 @@ export const EmployeeDetailModal: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Portal Access Credentials Box */}
+          <div className="p-4 rounded-xl bg-[#17181D] border border-[#2D3039] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[#FB923C] flex items-center gap-1.5">
+                <KeyRound className="w-4 h-4 text-[#E06D28]" />
+                <span>{isAr ? 'بيانات دخول الموظف للبوابة الخاصة' : 'Employee Portal Login Credentials'}</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={handleCopyCredentials}
+                className="py-1 px-2.5 rounded-lg bg-[#E06D28]/15 hover:bg-[#E06D28]/25 text-[#FB923C] font-bold text-[11px] flex items-center gap-1.5 border border-[#E06D28]/30 transition-colors cursor-pointer"
+              >
+                {isCopied ? <Check className="w-3.5 h-3.5 text-[#10B981]" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isCopied ? (isAr ? 'تم نسخ البيانات!' : 'Copied!') : (isAr ? 'نسخ كود وكلمة المرور' : 'Copy Credentials')}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-2.5 rounded-lg bg-[#1F2127] border border-[#2D3039] flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#9CA3AF] block font-semibold">{isAr ? 'كود الدخول' : 'Access Code'}</span>
+                  <span className="text-xs font-mono font-bold text-[#FB923C] mt-0.5 block">{emp.accessCode}</span>
+                </div>
+                <KeyRound className="w-4 h-4 text-[#9CA3AF]" />
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-[#1F2127] border border-[#2D3039] flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#9CA3AF] block font-semibold">{isAr ? 'كلمة المرور' : 'Password'}</span>
+                  <span className="text-xs font-mono font-bold text-white mt-0.5 block">
+                    {showPassword ? employeePassword : '••••••••'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1 text-[#9CA3AF] hover:text-white transition-colors cursor-pointer"
+                  title={showPassword ? (isAr ? 'إخفاء' : 'Hide') : (isAr ? 'إظهار' : 'Show')}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Attendance and Rating Log Records */}
