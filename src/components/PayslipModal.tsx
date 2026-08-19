@@ -11,8 +11,13 @@ import {
   AlertTriangle, 
   ChevronLeft, 
   ChevronRight, 
-  FileText
+  FileText,
+  Download,
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { Employee, AttendanceRecord, AppSettings } from '../types';
 import { generateMonthlyPayslipData, MonthlyPayslipData, ARABIC_MONTH_NAMES, ENGLISH_MONTH_NAMES } from '../utils/payslipUtils';
 import { formatDate } from '../utils/calculations';
@@ -39,6 +44,8 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
 }) => {
   const isAr = lang === 'ar';
   const printContainerRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportType, setExportType] = useState<'pdf' | 'print' | 'image' | null>(null);
 
   // Month navigation: Default to current date's month
   const currDateObj = new Date(currentDate);
@@ -56,8 +63,149 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
     currentDate
   );
 
-  const handlePrint = () => {
-    window.print();
+  // Helper to capture the exact rendered payslip sheet as a crisp canvas
+  const captureSheetCanvas = async (): Promise<HTMLCanvasElement | null> => {
+    if (!printContainerRef.current) return null;
+    const element = printContainerRef.current;
+    
+    return await html2canvas(element, {
+      scale: 2.5,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#FFFFFF',
+      windowWidth: 1024,
+      onclone: (clonedDoc) => {
+        const clonedSheet = clonedDoc.querySelector('.payslip-sheet') as HTMLElement;
+        if (clonedSheet) {
+          clonedSheet.style.boxShadow = 'none';
+          clonedSheet.style.border = '1px solid #CBD5E1';
+        }
+      }
+    });
+  };
+
+  // Direct high-fidelity PDF download (100% matches preview)
+  const handleDownloadPDF = async () => {
+    try {
+      setIsExporting(true);
+      setExportType('pdf');
+      
+      const canvas = await captureSheetCanvas();
+      if (!canvas) throw new Error('Could not capture sheet');
+
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // A4 dimensions in mm: 210 x 297
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const margin = 6;
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, Math.min(contentHeight, pdfHeight - (margin * 2)), undefined, 'FAST');
+      
+      const cleanEmpName = payslip.employeeName.replace(/\s+/g, '_');
+      const fileName = `قسيمة_راتب_${cleanEmpName}_${selectedYear}_${selectedMonthIndex + 1}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      // Fallback
+      window.print();
+    } finally {
+      setIsExporting(false);
+      setExportType(null);
+    }
+  };
+
+  // Direct print via isolated high-fidelity print window (100% matches preview)
+  const handlePrint = async () => {
+    try {
+      setIsExporting(true);
+      setExportType('print');
+
+      const canvas = await captureSheetCanvas();
+      if (!canvas) {
+        window.print();
+        return;
+      }
+
+      const imgData = canvas.toDataURL('image/png');
+
+      // Create a hidden print iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(`
+          <!DOCTYPE html>
+          <html dir="${isAr ? 'rtl' : 'ltr'}">
+            <head>
+              <title>قسيمة الراتب - ${payslip.employeeName}</title>
+              <style>
+                @page { size: A4 portrait; margin: 6mm 8mm; }
+                body { margin: 0; padding: 0; background: #FFF; text-align: center; }
+                img { width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto; }
+              </style>
+            </head>
+            <body>
+              <img src="${imgData}" onload="window.print();" />
+            </body>
+          </html>
+        `);
+        iframeDoc.close();
+
+        // Remove iframe after printing
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 3000);
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      console.error('Error printing:', err);
+      window.print();
+    } finally {
+      setIsExporting(false);
+      setExportType(null);
+    }
+  };
+
+  // Save as High-Res Image (PNG)
+  const handleDownloadPNG = async () => {
+    try {
+      setIsExporting(true);
+      setExportType('image');
+      const canvas = await captureSheetCanvas();
+      if (!canvas) return;
+
+      const imgData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      const cleanEmpName = payslip.employeeName.replace(/\s+/g, '_');
+      link.download = `قسيمة_راتب_${cleanEmpName}_${selectedYear}_${selectedMonthIndex + 1}.png`;
+      link.href = imgData;
+      link.click();
+    } catch (err) {
+      console.error('Error downloading image:', err);
+    } finally {
+      setIsExporting(false);
+      setExportType(null);
+    }
   };
 
   const handlePrevMonth = () => {
@@ -101,13 +249,14 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
           </div>
 
           {/* Month Selector & Actions */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Month Switcher */}
             <div className="flex items-center bg-[#17181D] border border-[#2D3039] rounded-xl p-1 text-xs">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="p-1 rounded-lg hover:bg-[#2D3039] text-[#9CA3AF] hover:text-white transition-colors cursor-pointer"
+                disabled={isExporting}
+                className="p-1 rounded-lg hover:bg-[#2D3039] text-[#9CA3AF] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                 title={isAr ? 'الشهر السابق' : 'Previous Month'}
               >
                 <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 stroke-[2]" />
@@ -120,21 +269,54 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="p-1 rounded-lg hover:bg-[#2D3039] text-[#9CA3AF] hover:text-white transition-colors cursor-pointer"
+                disabled={isExporting}
+                className="p-1 rounded-lg hover:bg-[#2D3039] text-[#9CA3AF] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                 title={isAr ? 'الشهر التالي' : 'Next Month'}
               >
                 <ChevronLeft className="w-4 h-4 rtl:rotate-0 rotate-180 stroke-[2]" />
               </button>
             </div>
 
-            {/* Print / Save PDF Button */}
+            {/* Download Official PDF Button (Pixel-Perfect) */}
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              disabled={isExporting}
+              className="py-2 px-3.5 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] flex items-center gap-1.5 shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer disabled:opacity-60"
+            >
+              {isExporting && exportType === 'pdf' ? (
+                <Loader2 className="w-4 h-4 animate-spin stroke-[2]" />
+              ) : (
+                <Download className="w-4 h-4 stroke-[2]" />
+              )}
+              <span>{isAr ? 'تحميل PDF رسمي' : 'Download PDF'}</span>
+            </button>
+
+            {/* Instant Print Button */}
             <button
               type="button"
               onClick={handlePrint}
-              className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-[#E06D28] hover:bg-[#F07935] flex items-center gap-2 shadow-sm shadow-[#E06D28]/25 transition-all cursor-pointer"
+              disabled={isExporting}
+              className="py-2 px-3 rounded-xl text-xs font-semibold text-white bg-[#262831] hover:bg-[#2D3039] border border-[#373A46] flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-60"
+              title={isAr ? 'طباعة مباشرة للمستند' : 'Direct Print'}
             >
-              <Printer className="w-4 h-4 stroke-[2]" />
-              <span>{isAr ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}</span>
+              {isExporting && exportType === 'print' ? (
+                <Loader2 className="w-4 h-4 animate-spin stroke-[2]" />
+              ) : (
+                <Printer className="w-4 h-4 stroke-[2]" />
+              )}
+              <span>{isAr ? 'طباعة' : 'Print'}</span>
+            </button>
+
+            {/* Save as PNG Image */}
+            <button
+              type="button"
+              onClick={handleDownloadPNG}
+              disabled={isExporting}
+              className="p-2 rounded-xl text-[#9CA3AF] hover:text-white bg-[#17181D] hover:bg-[#262831] border border-[#2D3039] transition-colors cursor-pointer disabled:opacity-50"
+              title={isAr ? 'حفظ كصورة عالية الدقة (PNG)' : 'Save as PNG Image'}
+            >
+              <ImageIcon className="w-4 h-4 stroke-[1.75]" />
             </button>
 
             {/* Close Button */}
@@ -149,17 +331,17 @@ export const PayslipModal: React.FC<PayslipModalProps> = ({
           </div>
         </div>
 
-        {/* Print Background Graphics Hint Banner */}
-        <div className="bg-[#1F2127]/60 px-4 py-1.5 border-b border-[#2D3039] flex items-center justify-between text-[11px] text-[#9CA3AF] no-print shrink-0">
-          <span className="flex items-center gap-1.5">
-            <span className="text-[#FB923C]">💡</span>
+        {/* Exporting Loading Banner */}
+        {isExporting && (
+          <div className="bg-[#E06D28]/15 border-b border-[#E06D28]/30 px-4 py-2 flex items-center justify-center gap-2 text-xs font-semibold text-[#FB923C] animate-pulse no-print">
+            <Loader2 className="w-4 h-4 animate-spin" />
             <span>
-              {isAr 
-                ? 'تلميح: عند الطباعة أو الحفظ كـ PDF، تظهر القسيمة بنفس مظهر المعاينة تماماً (يُرجى التأكد من تفعيل خيار "رسومات الخلفية" في نافذة الطباعة).' 
-                : 'Tip: For full-color PDF output, enable "Background graphics" in the print dialog.'}
+              {isAr
+                ? 'جاري تجهيز وتصدير قسيمة الراتب الرسمية بدقة عالية ومطابقة للمعاينة 100%...'
+                : 'Generating pixel-perfect high resolution official payslip...'}
             </span>
-          </span>
-        </div>
+          </div>
+        )}
 
         {/* Scrollable Printable Payslip Area */}
         <div className="payslip-scroll-area overflow-y-auto p-4 sm:p-6 bg-[#111216]">
